@@ -171,12 +171,15 @@ class Thermostat(object):
 
         self.cool_runtime_hourly = cool_runtime
         self.heat_runtime_hourly = heat_runtime
+
         if hasattr(cool_runtime, 'empty') and cool_runtime.empty is False:
-            self.cool_runtime_daily = cool_runtime.resample('D').agg(pd.Series.sum, skipna=True)
+            cool_runtime_interpolated = cool_runtime.interpolate(method='linear', limit=4)
+            self.cool_runtime_daily = cool_runtime_interpolated.resample('D').agg(pd.Series.sum, skipna=False)
         else:
             self.cool_runtime_daily = None
         if hasattr(heat_runtime, 'empty') and heat_runtime.empty is False:
-            self.heat_runtime_daily = heat_runtime.resample('D').agg(pd.Series.sum, skipna=True)
+            heat_runtime_interpolated = heat_runtime.interpolate(method='linear', limit=4)
+            self.heat_runtime_daily = heat_runtime_interpolated.resample('D').agg(pd.Series.sum, skipna=False)
         else:
             self.heat_runtime_daily = None
         self.auxiliary_heat_runtime = auxiliary_heat_runtime
