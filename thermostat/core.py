@@ -1187,6 +1187,46 @@ class Thermostat(object):
             A series containing estimated daily baseline heating runtime.
         """
         return np.maximum(alpha * (baseline_heating_demand), 0)
+    
+    def get_temperature_constants(self, core_day_set):
+        """ Calculate the temperature constant for a specific day set.
+
+        Returns
+        -------
+        heat_gain_constant : float
+            Value of heat gain constant for this core day set.
+        heat_loss_constant : float
+            Value of heat loss constant for this core day set.
+        """
+        if not self.has_cooling:
+            cool_runtime_hourly = pd.Series([0] * len(self.temperature_out.index),
+                                            index=self.temperature_out.index)
+        else:
+            cool_runtime_hourly = self.cool_runtime_hourly
+        if not self.has_heating:
+            heat_runtime_hourly = pd.Series([0] * len(self.temperature_out.index),
+                                            index=self.temperature_out.index)
+        else:
+            heat_runtime_hourly = self.heat_runtime_hourly
+        df = pd.concat([
+            cool_runtime_hourly,
+            heat_runtime_hourly,
+            self.temperature_in,
+            self.temperature_out], axis=1)
+        df.columns=['cool_runtime', 'heat_runtime', 'temp_in', 'temp_out']
+        
+        df['temp_gradient'] = (df.loc[:, 'temp_in'] - df.shift(1).loc[:, 'temp_in'] )/ \
+            ((df.loc[:, 'temp_out'] - df.loc[:, 'temp_in']).map(lambda x: 0.1 if abs(x) < 0.1 else x))
+        
+        heat_gain_constant = df \
+            .loc[core_day_set.hourly] \
+            .loc[(df.heat_runtime <= 5) & (df.cool_runtime <= 5) & ((df.temp_out - df.temp_in) > 1)] \
+            .temp_gradient.mean()
+        heat_loss_constant = df \
+            .loc[core_day_set.hourly] \
+            .loc[(df.heat_runtime <= 5) & (df.cool_runtime <= 5) & ((df.temp_in - df.temp_out) > 1)] \
+            .temp_gradient.mean()
+        return heat_gain_constant, heat_loss_constant
 
     def calculate_epa_field_savings_metrics(
             self,
@@ -1362,6 +1402,8 @@ class Thermostat(object):
         core_cooling_days_mean_indoor_temperature = self.temperature_in[core_cooling_day_set.hourly].mean()
         core_cooling_days_mean_outdoor_temperature = self.temperature_out[core_cooling_day_set.hourly].mean()
 
+        heat_gain_constant, heat_loss_constant = self.get_temperature_constants(core_cooling_day_set)
+
         outputs = {
             "sw_version": get_version(),
 
@@ -1414,6 +1456,8 @@ class Thermostat(object):
             "core_cooling_days_mean_outdoor_temperature": core_cooling_days_mean_outdoor_temperature,
             "core_mean_indoor_temperature": core_cooling_days_mean_indoor_temperature,
             "core_mean_outdoor_temperature": core_cooling_days_mean_outdoor_temperature,
+            "heat_gain_constant": heat_gain_constant,
+            "heat_loss_constant": heat_loss_constant
         }
         return outputs
 
@@ -1521,6 +1565,8 @@ class Thermostat(object):
         core_heating_days_mean_indoor_temperature = self.temperature_in[core_heating_day_set.hourly].mean()
         core_heating_days_mean_outdoor_temperature = self.temperature_out[core_heating_day_set.hourly].mean()
 
+        heat_gain_constant, heat_loss_constant = self.get_temperature_constants(core_heating_day_set)
+
         outputs = {
             "sw_version": get_version(),
 
@@ -1573,6 +1619,8 @@ class Thermostat(object):
             "core_heating_days_mean_outdoor_temperature": core_heating_days_mean_outdoor_temperature,
             "core_mean_indoor_temperature": core_heating_days_mean_indoor_temperature,
             "core_mean_outdoor_temperature": core_heating_days_mean_outdoor_temperature,
+            "heat_gain_constant": heat_gain_constant,
+            "heat_loss_constant": heat_loss_constant
         }
 
         return outputs
