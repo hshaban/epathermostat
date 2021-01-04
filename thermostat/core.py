@@ -1228,6 +1228,58 @@ class Thermostat(object):
             .temp_gradient.mean()
         return heat_gain_constant, heat_loss_constant
 
+    def get_cooling_hvac_constant(self, core_day_set):
+        """ Calculate the HVAC time constant for a specific day set.
+
+        Returns
+        -------
+        cooling_hvac_constant : float
+            Value of HVAC time constant for this core day set.
+        """
+        self._protect_cooling()
+        
+        df = pd.concat([
+            self.cool_runtime_hourly,
+            self.temperature_in,
+            self.temperature_out], axis=1)
+        df.columns=['cool_runtime', 'temp_in', 'temp_out']
+        
+        df['temp_gradient'] = (df.loc[:, 'temp_in'] - df.shift(1).loc[:, 'temp_in'] )/ \
+            ((df.loc[:, 'temp_out'] - df.loc[:, 'temp_in']).map(lambda x: 0.1 if abs(x) < 0.1 else x))/ \
+            df.cool_runtime.map(lambda x: 0.1 if abs(x) < 0.1 else x) * 60
+        
+        cooling_hvac_constant = df \
+            .loc[core_day_set.hourly] \
+            .loc[(df.cool_runtime >= 15) & ((df.temp_out - df.temp_in) > 1)] \
+            .temp_gradient.mean()
+        return cooling_hvac_constant
+
+    def get_heating_hvac_constant(self, core_day_set):
+        """ Calculate the HVAC time constant for a specific day set.
+
+        Returns
+        -------
+        heating_hvac_constant : float
+            Value of HVAC time constant for this core day set.
+        """
+        self._protect_heating()
+        
+        df = pd.concat([
+            self.heat_runtime_hourly,
+            self.temperature_in,
+            self.temperature_out], axis=1)
+        df.columns=['heat_runtime', 'temp_in', 'temp_out']
+        
+        df['temp_gradient'] = (df.loc[:, 'temp_in'] - df.shift(1).loc[:, 'temp_in'] )/ \
+            ((df.loc[:, 'temp_out'] - df.loc[:, 'temp_in']).map(lambda x: 0.1 if abs(x) < 0.1 else x))/ \
+            df.heat_runtime.map(lambda x: 0.1 if abs(x) < 0.1 else x) * 60
+        
+        heating_hvac_constant = df \
+            .loc[core_day_set.hourly] \
+            .loc[(df.heat_runtime >= 15) & ((df.temp_in - df.temp_out) > 1)] \
+            .temp_gradient.mean()
+        return heating_hvac_constant
+
     def calculate_epa_field_savings_metrics(
             self,
             core_cooling_day_set_method="entire_dataset",
@@ -1403,7 +1455,8 @@ class Thermostat(object):
         core_cooling_days_mean_outdoor_temperature = self.temperature_out[core_cooling_day_set.hourly].mean()
 
         heat_gain_constant, heat_loss_constant = self.get_temperature_constants(core_cooling_day_set)
-
+        hvac_constant = self.get_cooling_hvac_constant(core_cooling_day_set)
+        
         outputs = {
             "sw_version": get_version(),
 
@@ -1457,7 +1510,8 @@ class Thermostat(object):
             "core_mean_indoor_temperature": core_cooling_days_mean_indoor_temperature,
             "core_mean_outdoor_temperature": core_cooling_days_mean_outdoor_temperature,
             "heat_gain_constant": heat_gain_constant,
-            "heat_loss_constant": heat_loss_constant
+            "heat_loss_constant": heat_loss_constant,
+            "hvac_constant": hvac_constant
         }
         return outputs
 
@@ -1566,6 +1620,7 @@ class Thermostat(object):
         core_heating_days_mean_outdoor_temperature = self.temperature_out[core_heating_day_set.hourly].mean()
 
         heat_gain_constant, heat_loss_constant = self.get_temperature_constants(core_heating_day_set)
+        hvac_constant = self.get_cooling_hvac_constant(core_heating_day_set)
 
         outputs = {
             "sw_version": get_version(),
@@ -1620,7 +1675,8 @@ class Thermostat(object):
             "core_mean_indoor_temperature": core_heating_days_mean_indoor_temperature,
             "core_mean_outdoor_temperature": core_heating_days_mean_outdoor_temperature,
             "heat_gain_constant": heat_gain_constant,
-            "heat_loss_constant": heat_loss_constant
+            "heat_loss_constant": heat_loss_constant,
+            "hvac_constant": hvac_constant
         }
 
         return outputs
