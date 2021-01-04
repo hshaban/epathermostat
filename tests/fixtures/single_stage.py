@@ -163,7 +163,7 @@ def core_cooling_day_set_type_5(thermostat_type_5):
 def metrics_type_1_data():
 
     # this data comes from a script in scripts/test_data_generation.ipynb
-    data = [{'sw_version': '2.0.0a1',
+    data = [{'sw_version': '2.0.0nw1',
         'ct_identifier': '8465829e-df0d-449e-97bf-96317c24dec3',
         'heat_type': 'heat_pump_electric_backup',
         'heat_stage': 'single_stage',
@@ -206,8 +206,10 @@ def metrics_type_1_data():
         'core_cooling_days_mean_indoor_temperature': 73.95971753003002,
         'core_cooling_days_mean_outdoor_temperature': 79.8426321875,
         'core_mean_indoor_temperature': 73.95971753003002,
-        'core_mean_outdoor_temperature': 79.8426321875},
-        {'sw_version': '2.0.0a1',
+        'core_mean_outdoor_temperature': 79.8426321875,
+        'heat_gain_constant': -0.24240778006476654,
+        'heat_loss_constant': -0.6987162019197792},
+        {'sw_version': '2.0.0nw1',
         'ct_identifier': '8465829e-df0d-449e-97bf-96317c24dec3',
         'heat_type': 'heat_pump_electric_backup',
         'heat_stage': 'single_stage',
@@ -251,6 +253,8 @@ def metrics_type_1_data():
         'core_heating_days_mean_outdoor_temperature': 44.679677289106145,
         'core_mean_indoor_temperature': 66.6958723285375,
         'core_mean_outdoor_temperature': 44.679677289106145,
+        'heat_gain_constant': -0.6723011363825689,
+        'heat_loss_constant': -0.21477173349444825,
         'total_auxiliary_heating_core_day_runtime': 144794.0,
         'total_emergency_heating_core_day_runtime': 2104.0,
         'rhu1_00F_to_05F': nan,
