@@ -1,3 +1,5 @@
+This a fork of the EPA thermostat metric repository. It is a custom version developed for a study of thermostat performance in Northwestern USA sponsored by NEEA.
+
 Connected Thermostat draft field savings metrics module
 =======================================================
 
