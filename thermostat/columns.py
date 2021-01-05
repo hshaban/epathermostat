@@ -86,6 +86,10 @@ REAL_OR_INTEGER_VALUED_COLUMNS_HEATING = [
     'core_heating_days_mean_outdoor_temperature',
     'core_mean_indoor_temperature',
     'core_mean_outdoor_temperature',
+
+    'heat_gain_constant',
+    'heat_loss_constant',
+    'hvac_constant',
 ] + RHU_COLUMNS
 
 REAL_OR_INTEGER_VALUED_COLUMNS_COOLING = [
@@ -126,6 +130,10 @@ REAL_OR_INTEGER_VALUED_COLUMNS_COOLING = [
     'core_cooling_days_mean_outdoor_temperature',
     'core_mean_indoor_temperature',
     'core_mean_outdoor_temperature',
+
+    'heat_gain_constant',
+    'heat_loss_constant',
+    'hvac_constant',
 ]
 
 REAL_OR_INTEGER_VALUED_COLUMNS_ALL = [
@@ -171,6 +179,10 @@ REAL_OR_INTEGER_VALUED_COLUMNS_ALL = [
 
     'core_mean_indoor_temperature',
     'core_mean_outdoor_temperature',
+
+    'heat_gain_constant',
+    'heat_loss_constant',
+    'hvac_constant',
 ] + RHU_COLUMNS + RHU2_IQFLT_COLUMNS
 
 EXPORT_COLUMNS = [
@@ -234,6 +246,10 @@ EXPORT_COLUMNS = [
     'core_heating_days_mean_outdoor_temperature',
     'core_mean_indoor_temperature',
     'core_mean_outdoor_temperature',
+
+    'heat_gain_constant',
+    'heat_loss_constant',
+    'hvac_constant',
     ] + RHU_COLUMNS
 
 CERTIFICATION_HEADERS = [

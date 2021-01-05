@@ -52,7 +52,7 @@ def core_cooling_day_set_hpeb_2_hp_2_entire(thermostat_hpeb_2_hp_2):
 @pytest.fixture(scope="session")
 def metrics_hpeb_2_hp_2_data():
 
-    data = [{'sw_version': '2.0.0a1',
+    data = [{'sw_version': '2.0.0nw1',
 	'ct_identifier': 'c61badb0e0c0a7e06932de804af43111',
 	'heat_type': 'heat_pump_electric_backup',
 	'heat_stage': 'two_stage',
@@ -95,8 +95,11 @@ def metrics_hpeb_2_hp_2_data():
 	'core_cooling_days_mean_indoor_temperature': 71.86122395833334,
 	'core_cooling_days_mean_outdoor_temperature': 74.37230553125,
 	'core_mean_indoor_temperature': 71.86122395833334,
-	'core_mean_outdoor_temperature': 74.37230553125},
-	{'sw_version': '2.0.0a1',
+	'core_mean_outdoor_temperature': 74.37230553125,
+    'heat_gain_constant': 0.0528959910676605,
+    'heat_loss_constant': -0.024651925811247095,
+    'hvac_constant': -0.02282666625140404},
+	{'sw_version': '2.0.0nw1',
 	'ct_identifier': 'c61badb0e0c0a7e06932de804af43111',
 	'heat_type': 'heat_pump_electric_backup',
 	'heat_stage': 'two_stage',
@@ -140,6 +143,9 @@ def metrics_hpeb_2_hp_2_data():
 	'core_heating_days_mean_outdoor_temperature': 43.64093413793104,
 	'core_mean_indoor_temperature': 68.65607040229885,
 	'core_mean_outdoor_temperature': 43.64093413793104,
+    'heat_gain_constant': 0.6405944716697065,
+    'heat_loss_constant': -0.0036649329326556234,
+    'hvac_constant': -0.001968697650047877,
 	'total_auxiliary_heating_core_day_runtime': 1512.6000000000001,
 	'total_emergency_heating_core_day_runtime': 0.0,
 	'rhu1_00F_to_05F': nan,

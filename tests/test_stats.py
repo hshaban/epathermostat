@@ -96,6 +96,10 @@ def get_fake_output_df(n_columns):
         'core_mean_indoor_temperature': float_column,
         'core_mean_outdoor_temperature': float_column,
 
+        'heat_gain_constant': float_column,
+        'heat_loss_constant': float_column,
+        'hvac_constant': float_column,
+
         'rhu1_aux_duty_cycle': float_column,
         'rhu1_emg_duty_cycle': float_column,
         'rhu1_compressor_duty_cycle': float_column,
@@ -233,14 +237,14 @@ def combined_dataframe():
 
 def test_combine_output_dataframes(dataframes):
     combined = combine_output_dataframes(dataframes)
-    assert combined.shape == (20, 79)
+    assert combined.shape == (20, 82)
 
 
 def test_compute_summary_statistics(combined_dataframe):
     summary_statistics = compute_summary_statistics(combined_dataframe)
     assert [len(s) for s in summary_statistics] == [
             49, 49, 49, 49,
-            2049, 901, 2049, 901,
+            2133, 985, 2133, 985,
             ]
 
     def test_compute_summary_statistics_advanced(combined_dataframe):
@@ -248,7 +252,7 @@ def test_compute_summary_statistics(combined_dataframe):
                 advanced_filtering=True)
         assert [len(s) for s in summary_statistics] == [
                 49, 49, 49, 49, 49, 49, 49, 49,
-                2049, 901, 2049, 901, 2049, 901, 2049, 901,
+                2133, 985, 2133, 985, 2133, 985, 2133, 985,
                 ]
 
         def test_summary_statistics_to_csv(combined_dataframe):
@@ -260,7 +264,7 @@ def test_compute_summary_statistics(combined_dataframe):
     assert isinstance(stats_df, pd.DataFrame)
 
     stats_df_reread = pd.read_csv(fname)
-    assert stats_df_reread.shape == (2133, 5)
+    assert stats_df_reread.shape == (2217, 5)
 
 
 def test_certification(combined_dataframe):

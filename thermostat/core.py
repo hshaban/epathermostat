@@ -1620,7 +1620,7 @@ class Thermostat(object):
         core_heating_days_mean_outdoor_temperature = self.temperature_out[core_heating_day_set.hourly].mean()
 
         heat_gain_constant, heat_loss_constant = self.get_temperature_constants(core_heating_day_set)
-        hvac_constant = self.get_cooling_hvac_constant(core_heating_day_set)
+        hvac_constant = self.get_heating_hvac_constant(core_heating_day_set)
 
         outputs = {
             "sw_version": get_version(),
