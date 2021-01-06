@@ -6,7 +6,8 @@ import logging
 
 import pandas as pd
 import numpy as np
-from scipy.optimize import leastsq
+from scipy.optimize import leastsq, least_squares
+from scipy.special import erf
 
 from thermostat import get_version
 from thermostat.climate_zone import retrieve_climate_zone
@@ -195,6 +196,7 @@ class Thermostat(object):
         
         self.heating_demand = None
         self.tau = None
+        self.hourly_temperature_baseline = None
         self.validate()
         self.get_climate_zones()
         self.find_baselines()
@@ -1339,7 +1341,7 @@ class Thermostat(object):
         df['bins'] = pd.cut(df.temperature_out, bins)
         return df
 
-    def get_dnru_daily(self, bins, core_day_set):
+    def get_rh_metrics_daily(self, bins, core_day_set):
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
@@ -1371,6 +1373,7 @@ class Thermostat(object):
         binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
         dnru_reduction_daily = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         
+
         return dnru_daily, dnru_reduction_daily
 
     def get_binned_demand_hourly(self, bins):
@@ -1386,7 +1389,7 @@ class Thermostat(object):
         df['bins'] = pd.cut(df.temperature, bins)
         return df
 
-    def get_dnru_hourly(self, bins):
+    def get_rh_metrics_hourly(self, bins, core_day_set):
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
@@ -1397,6 +1400,7 @@ class Thermostat(object):
         runtime_temp['emg_runtime'] = self.emergency_heat_runtime
         runtime_temp['n_hours'] = 1
         runtime_temp['bins'] = pd.cut(runtime_temp['temperature'], bins)
+        runtime_temp = runtime_temp[core_day_set.hourly]
 
         runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime', 'n_hours'].sum()
         runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
@@ -1419,6 +1423,48 @@ class Thermostat(object):
         dnru_reduction_hourly = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         
         return dnru_hourly, dnru_reduction_hourly
+
+    def get_baseline_hourly_cooling_demand(self, core_cooling_day_set, temp_baseline, tau):
+        self._protect_cooling()
+
+        hourly_temp_out = self.temperature_out[core_cooling_day_set.hourly]
+        if len(hourly_temp_out) == 0:
+            return pd.Series()
+
+        df = pd.DataFrame()
+        df['temperature_out'] = hourly_temp_out
+        df.index = hourly_temp_out.index
+        df['leap_adjustment'] = (df.index.is_leap_year) & (df.index.dayofyear >= 59)
+        df['hour_of_year'] = 1 + df.index.hour + (df.index.dayofyear - 1 - df.leap_adjustment) * 24 
+            
+        df = df.merge(temp_baseline, on='hour_of_year')
+
+        hourly_cdd = (tau - (df.temperature_in - df.temperature_out)).apply(lambda x: np.maximum(x, 0))
+        demand = np.array([cdd.sum() / 24 for day, cdd in hourly_cdd.groupby(hourly_temp_out.index.date)])
+
+        index = core_cooling_day_set.daily[core_cooling_day_set.daily].index
+        return pd.Series(demand, index=index)
+
+    def get_baseline_hourly_heating_demand(self, core_heating_day_set, temp_baseline, tau):
+        self._protect_heating()
+
+        hourly_temp_out = self.temperature_out[core_heating_day_set.hourly]
+        if len(hourly_temp_out) == 0:
+            return pd.Series()
+
+        df = pd.DataFrame()
+        df['temperature_out'] = hourly_temp_out
+        df.index = hourly_temp_out.index
+        df['leap_adjustment'] = (df.index.is_leap_year) & (df.index.dayofyear >= 59)
+        df['hour_of_year'] = 1 + df.index.hour + (df.index.dayofyear - 1 - df.leap_adjustment) * 24 
+            
+        df = df.merge(temp_baseline, on='hour_of_year')
+        hourly_hdd = (df.temperature_in - df.temperature_out - tau).apply(lambda x: np.maximum(x, 0))
+        demand = np.array([hdd.sum() / 24 for day, hdd in hourly_hdd.groupby(hourly_temp_out.index.date)])
+
+        index = core_heating_day_set.daily[core_heating_day_set.daily].index
+        return pd.Series(demand, index=index)
+
 
     def calculate_epa_field_savings_metrics(
             self,
@@ -1587,6 +1633,45 @@ class Thermostat(object):
             baseline_total_core_day_runtime_baseline_regional = None
             _daily_mean_core_day_demand_baseline_baseline_regional = None
 
+        if self.hourly_temperature_baseline is not None:
+
+            baseline_hourly_regional_demand = self.get_baseline_hourly_cooling_demand(
+                core_cooling_day_set,
+                self.hourly_temperature_baseline,
+                tau,
+            )
+
+            baseline_hourly_regional_runtime = self.get_baseline_cooling_runtime(
+                baseline_hourly_regional_demand,
+                alpha,
+            )
+
+            avoided_runtime_baseline_hourly_regional = avoided(baseline_hourly_regional_runtime, daily_runtime)
+
+            percent_savings_baseline_hourly_regional = percent_savings(avoided_runtime_baseline_hourly_regional, baseline_hourly_regional_runtime, self.thermostat_id)
+
+            avoided_daily_mean_core_day_runtime_baseline_hourly_regional = avoided_runtime_baseline_hourly_regional.mean()
+            avoided_total_core_day_runtime_baseline_hourly_regional = avoided_runtime_baseline_hourly_regional.sum()
+            baseline_daily_mean_core_day_runtime_baseline_hourly_regional = baseline_hourly_regional_runtime.mean()
+            baseline_total_core_day_runtime_baseline_hourly_regional = baseline_hourly_regional_runtime.sum()
+            _daily_mean_core_day_demand_baseline_baseline_hourly_regional = np.nanmean(baseline_hourly_regional_demand)
+
+        else:
+
+            baseline_hourly_regional_demand = None
+
+            baseline_hourly_regional_runtime = None
+
+            avoided_runtime_baseline_hourly_regional = None
+
+            percent_savings_baseline_hourly_regional = None
+            avoided_daily_mean_core_day_runtime_baseline_hourly_regional = None
+            avoided_total_core_day_runtime_baseline_hourly_regional = None
+            baseline_daily_mean_core_day_runtime_baseline_hourly_regional = None
+            baseline_total_core_day_runtime_baseline_hourly_regional = None
+            _daily_mean_core_day_demand_baseline_baseline_hourly_regional = None
+
+
         n_days_both, n_days_insufficient_data = self.get_ignored_days(core_cooling_day_set)
         n_core_cooling_days = self.get_core_day_set_n_days(core_cooling_day_set)
         n_days_in_inputfile_date_range = self.get_inputfile_date_range(core_cooling_day_set)
@@ -1632,6 +1717,12 @@ class Thermostat(object):
             "baseline_daily_mean_core_day_runtime_baseline_regional": baseline_daily_mean_core_day_runtime_baseline_regional,
             "baseline_total_core_day_runtime_baseline_regional": baseline_total_core_day_runtime_baseline_regional,
             "_daily_mean_core_day_demand_baseline_baseline_regional": _daily_mean_core_day_demand_baseline_baseline_regional,
+            "percent_savings_baseline_hourly_regional": percent_savings_baseline_hourly_regional,
+            "avoided_daily_mean_core_day_runtime_baseline_hourly_regional": avoided_daily_mean_core_day_runtime_baseline_hourly_regional,
+            "avoided_total_core_day_runtime_baseline_hourly_regional": avoided_total_core_day_runtime_baseline_hourly_regional,
+            "baseline_daily_mean_core_day_runtime_baseline_hourly_regional": baseline_daily_mean_core_day_runtime_baseline_hourly_regional,
+            "baseline_total_core_day_runtime_baseline_hourly_regional": baseline_total_core_day_runtime_baseline_hourly_regional,
+            "_daily_mean_core_day_demand_baseline_baseline_hourly_regional": _daily_mean_core_day_demand_baseline_baseline_hourly_regional,
             "mean_demand": np.nanmean(demand),
             "tau": tau,
             "alpha": alpha,
@@ -1755,6 +1846,44 @@ class Thermostat(object):
             baseline_total_core_day_runtime_baseline_regional = None
             _daily_mean_core_day_demand_baseline_baseline_regional = None
 
+        if self.hourly_temperature_baseline is not None:
+
+            baseline_hourly_regional_demand = self.get_baseline_hourly_heating_demand(
+                core_heating_day_set,
+                self.hourly_temperature_baseline,
+                tau,
+            )
+
+            baseline_hourly_regional_runtime = self.get_baseline_heating_runtime(
+                baseline_hourly_regional_demand,
+                alpha,
+            )
+
+            avoided_runtime_baseline_hourly_regional = avoided(baseline_hourly_regional_runtime, daily_runtime)
+
+            percent_savings_baseline_hourly_regional = percent_savings(avoided_runtime_baseline_hourly_regional, baseline_hourly_regional_runtime, self.thermostat_id)
+
+            avoided_daily_mean_core_day_runtime_baseline_hourly_regional = avoided_runtime_baseline_hourly_regional.mean()
+            avoided_total_core_day_runtime_baseline_hourly_regional = avoided_runtime_baseline_hourly_regional.sum()
+            baseline_daily_mean_core_day_runtime_baseline_hourly_regional = baseline_hourly_regional_runtime.mean()
+            baseline_total_core_day_runtime_baseline_hourly_regional = baseline_hourly_regional_runtime.sum()
+            _daily_mean_core_day_demand_baseline_baseline_hourly_regional = np.nanmean(baseline_hourly_regional_demand)
+
+        else:
+
+            baseline_hourly_regional_demand = None
+
+            baseline_hourly_regional_runtime = None
+
+            avoided_runtime_baseline_hourly_regional = None
+
+            percent_savings_baseline_hourly_regional = None
+            avoided_daily_mean_core_day_runtime_baseline_hourly_regional = None
+            avoided_total_core_day_runtime_baseline_hourly_regional = None
+            baseline_daily_mean_core_day_runtime_baseline_hourly_regional = None
+            baseline_total_core_day_runtime_baseline_hourly_regional = None
+            _daily_mean_core_day_demand_baseline_baseline_hourly_regional = None
+
         n_days_both, n_days_insufficient_data = self.get_ignored_days(core_heating_day_set)
         n_core_heating_days = self.get_core_day_set_n_days(core_heating_day_set)
         n_days_in_inputfile_date_range = self.get_inputfile_date_range(core_heating_day_set)
@@ -1800,6 +1929,12 @@ class Thermostat(object):
             "baseline_daily_mean_core_day_runtime_baseline_regional": baseline_daily_mean_core_day_runtime_baseline_regional,
             "baseline_total_core_day_runtime_baseline_regional": baseline_total_core_day_runtime_baseline_regional,
             "_daily_mean_core_day_demand_baseline_baseline_regional": _daily_mean_core_day_demand_baseline_baseline_regional,
+            "percent_savings_baseline_hourly_regional": percent_savings_baseline_hourly_regional,
+            "avoided_daily_mean_core_day_runtime_baseline_hourly_regional": avoided_daily_mean_core_day_runtime_baseline_hourly_regional,
+            "avoided_total_core_day_runtime_baseline_hourly_regional": avoided_total_core_day_runtime_baseline_hourly_regional,
+            "baseline_daily_mean_core_day_runtime_baseline_hourly_regional": baseline_daily_mean_core_day_runtime_baseline_hourly_regional,
+            "baseline_total_core_day_runtime_baseline_hourly_regional": baseline_total_core_day_runtime_baseline_hourly_regional,
+            "_daily_mean_core_day_demand_baseline_baseline_hourly_regional": _daily_mean_core_day_demand_baseline_baseline_hourly_regional,
             "mean_demand": np.nanmean(demand),
             "tau": tau,
             "alpha": alpha,
