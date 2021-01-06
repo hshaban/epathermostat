@@ -212,15 +212,26 @@ class Thermostat(object):
         self._validate_aux_emerg()
     
     def get_climate_zones(self):
+        northwest_climate_zone_filename = 'northwest_climate_zone_mapping.csv'
+        if not resource_exists('thermostat.resources', northwest_climate_zone_filename):
+            self.heating_zone_nw = None
+            self.cooling_zone_nw = None
+            return None
         with resource_stream(
                 'thermostat.resources',
                 'northwest_climate_zone_mapping.csv') as f:
-            mapping = pd.read_csv(f)
-        self.heating_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'heating_zone']
-        self.cooling_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'cooling_zone']
+            mapping = pd.read_csv(f, dtype=str)
+        try:
+            self.heating_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'heating_zone'].iloc[0]
+        except IndexError:
+            self.heating_zone_nw = None
+        try:
+            self.cooling_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'cooling_zone'].iloc[0]
+        except:
+            self.cooling_zone_nw = None
 
     def find_baselines(self):
-        heatpump_baseline_filename = f'heatpump_baseline_nw_hz{self.heating_zone}_cz{self.cooling_zone}.csv'
+        heatpump_baseline_filename = f'heatpump_baseline_nw_hz{self.heating_zone_nw}_cz{self.cooling_zone_nw}.csv'
         if not resource_exists('thermostat.resources', heatpump_baseline_filename):
             heatpump_baseline_filename = 'heatpump_baseline_default.csv'
         with resource_stream(
@@ -228,8 +239,8 @@ class Thermostat(object):
                 heatpump_baseline_filename) as f:
             self.runtime_heatpump_baseline = pd.read_csv(f)
         
-        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_hz{self.heating_zone}_cz{self.cooling_zone}.csv'
-        if not resource_exists('thermostat.resources', heatpump_baseline_filename):
+        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_hz{self.heating_zone_nw}_cz{self.cooling_zone_nw}.csv'
+        if not resource_exists('thermostat.resources', temperature_baseline_filename):
             temperature_baseline_filename = 'temperature_baseline_default.csv'
         with resource_stream(
                 'thermostat.resources',
@@ -1886,8 +1897,6 @@ class Thermostat(object):
             
             # We no longer track different duty cycles (aux, emg, compressor, etc.)
             duty_cycle = None
-            additional_outputs.update({
-                'dnru_daily': dnru_daily})
 
             additional_outputs.update(self._rhu_outputs(
                 rhu_type=rhu_type,
