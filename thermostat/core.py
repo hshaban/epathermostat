@@ -22,6 +22,8 @@ from thermostat.equipment_type import (
         validate_cool_stage,
         )
 
+from pkg_resources import resource_stream, resource_exists
+
 warnings.simplefilter('module', Warning)
 
 # Ignore divide-by-zero errors
@@ -190,7 +192,12 @@ class Thermostat(object):
         self.auxiliary_heat_runtime = auxiliary_heat_runtime
         self.emergency_heat_runtime = emergency_heat_runtime
 
+        
+        self.heating_demand = None
+        self.tau = None
         self.validate()
+        self.get_climate_zones()
+        self.find_baselines()
 
     def validate(self):
         # Generate warnings for invalid heating / cooling types and stages
@@ -203,7 +210,33 @@ class Thermostat(object):
         self._validate_heating()
         self._validate_cooling()
         self._validate_aux_emerg()
+    
+    def get_climate_zones(self):
+        with resource_stream(
+                'thermostat.resources',
+                'northwest_climate_zone_mapping.csv') as f:
+            mapping = pd.read_csv(f)
+        self.heating_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'heating_zone']
+        self.cooling_zone_nw = mapping.loc[mapping.zipcode == self.zipcode, 'cooling_zone']
 
+    def find_baselines(self):
+        heatpump_baseline_filename = f'heatpump_baseline_nw_hz{self.heating_zone}_cz{self.cooling_zone}.csv'
+        if not resource_exists('thermostat.resources', heatpump_baseline_filename):
+            heatpump_baseline_filename = 'heatpump_baseline_default.csv'
+        with resource_stream(
+                'thermostat.resources',
+                heatpump_baseline_filename) as f:
+            self.runtime_heatpump_baseline = pd.read_csv(f)
+        
+        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_hz{self.heating_zone}_cz{self.cooling_zone}.csv'
+        if not resource_exists('thermostat.resources', heatpump_baseline_filename):
+            temperature_baseline_filename = 'temperature_baseline_default.csv'
+        with resource_stream(
+                'thermostat.resources',
+                temperature_baseline_filename) as f:
+            self.hourly_temperature_baseline = pd.read_csv(f)
+        
+        
     def _format_rhu(self, rhu_type, low, high, duty_cycle):
         """ Formats the RHU scores for output
         rhu_type : str
@@ -1279,6 +1312,102 @@ class Thermostat(object):
             .loc[(df.heat_runtime >= 15) & ((df.temp_in - df.temp_out) > 1)] \
             .temp_gradient.mean()
         return heating_hvac_constant
+    
+    def get_binned_demand_daily(self, demand, bins):
+        self._protect_resistance_heat()
+        self._protect_aux_emerg()
+
+        if demand is None:
+            return None
+        elif type(demand) == pd.Series:
+            demand = pd.DataFrame(demand).rename(columns={0: 'demand'})
+            temperature = pd.DataFrame(self.temperature_out.resample('D').agg(np.mean)).rename(columns={0: 'temperature_out'})
+        df = demand.merge(temperature, left_index=True, right_index=True)
+            
+        # Create the bins and group by them
+        df['bins'] = pd.cut(df.temperature_out, bins)
+        return df
+
+    def get_dnru_daily(self, bins, core_day_set):
+        self._protect_resistance_heat()
+        self._protect_aux_emerg()
+
+        runtime_temp = self.get_resistance_heat_utilization_runtime(core_day_set)
+        runtime_temp['bins'] = pd.cut(runtime_temp['temperature'], bins)
+        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
+        runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
+        
+        if (self.heating_demand is None) | (len(runtime_rhu.dropna().index) == 0):
+            return np.nan, np.nan
+        
+        binned_demand = self.get_binned_demand_daily(
+                    self.heating_demand,
+                    bins)
+        binned_demand = binned_demand.merge(runtime_rhu.loc[:, 'rhu'], left_on='bins', right_index=True)
+        binned_demand['rhu_norm'] = binned_demand.demand * binned_demand.rhu
+        dnru_daily = binned_demand.rhu_norm.sum() / binned_demand.demand.sum()
+        
+        runtime_temp_baseline = self.runtime_heatpump_baseline.resample('D').agg({
+            'temperature': np.mean,
+            'heat_runtime': np.sum,
+            'aux_runtime': np.sum,
+            'emg_runtime': np.sum})
+        runtime_temp_baseline['bins'] = pd.cut(runtime_temp_baseline['temperature'], bins)
+        runtime_rhu_baseline = runtime_temp_baseline.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
+        runtime_rhu_baseline['rhu_baseline'] = (runtime_rhu_baseline['aux_runtime'] + runtime_rhu_baseline['emg_runtime']) / \
+            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'])
+        binned_demand = binned_demand.merge(runtime_rhu_baseline.loc[:, 'rhu_baseline'], left_on='bins', right_index=True)
+        binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
+        dnru_reduction_daily = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
+        
+        return dnru_daily, dnru_reduction_daily
+
+    def get_binned_demand_hourly(self, bins):
+        self._protect_resistance_heat()
+        self._protect_aux_emerg()
+
+        demand = (self.temperature_in - self.temperature_out - self.tau).apply(lambda x: np.maximum(x, 0))
+        demand = pd.DataFrame(demand).rename(columns={0: 'demand'})
+        temperature = pd.DataFrame(self.temperature_out).rename(columns={0: 'temperature'})
+        df = demand.merge(temperature, left_index=True, right_index=True)
+            
+        # Create the bins and group by them
+        df['bins'] = pd.cut(df.temperature, bins)
+        return df
+
+    def get_dnru_hourly(self, bins):
+        self._protect_resistance_heat()
+        self._protect_aux_emerg()
+
+        runtime_temp = pd.DataFrame()
+        runtime_temp['temperature'] = self.temperature_out
+        runtime_temp['heat_runtime'] = self.heat_runtime_hourly
+        runtime_temp['aux_runtime'] = self.auxiliary_heat_runtime
+        runtime_temp['emg_runtime'] = self.emergency_heat_runtime
+        runtime_temp['n_hours'] = 1
+        runtime_temp['bins'] = pd.cut(runtime_temp['temperature'], bins)
+
+        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime', 'n_hours'].sum()
+        runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
+        
+        if (len(runtime_rhu.dropna().index) == 0):
+            return np.nan, np.nan
+        
+        binned_demand = self.get_binned_demand_hourly(bins)
+        binned_demand = binned_demand.merge(runtime_rhu.loc[:, 'rhu'], left_on='bins', right_index=True)
+        binned_demand['rhu_norm'] = binned_demand.demand * binned_demand.rhu
+        dnru_hourly = binned_demand.rhu_norm.sum() / binned_demand.demand.sum()
+        
+        runtime_temp_baseline = self.runtime_heatpump_baseline
+        runtime_temp_baseline['bins'] = pd.cut(runtime_temp_baseline['temperature'], bins)
+        runtime_rhu_baseline = runtime_temp_baseline.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
+        runtime_rhu_baseline['rhu_baseline'] = (runtime_rhu_baseline['aux_runtime'] + runtime_rhu_baseline['emg_runtime']) / \
+            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'])
+        binned_demand = binned_demand.merge(runtime_rhu_baseline.loc[:, 'rhu_baseline'], left_on='bins', right_index=True)
+        binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
+        dnru_reduction_hourly = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
+        
+        return dnru_hourly, dnru_reduction_hourly
 
     def calculate_epa_field_savings_metrics(
             self,
@@ -1540,6 +1669,9 @@ class Thermostat(object):
             mae,
         ) = self.get_heating_demand(core_heating_day_set)
 
+        self.heating_demand = demand.copy()
+        self.tau = tau
+
         total_runtime_core_heating = daily_runtime.sum()
         n_days = core_heating_day_set.daily.sum()
         n_hours = core_heating_day_set.hourly.sum()
@@ -1750,9 +1882,12 @@ class Thermostat(object):
                     RESISTANCE_HEAT_USE_WIDE_BIN,
                     core_heating_day_set,
                     min_runtime_minutes)
-
+            
+            
             # We no longer track different duty cycles (aux, emg, compressor, etc.)
             duty_cycle = None
+            additional_outputs.update({
+                'dnru_daily': dnru_daily})
 
             additional_outputs.update(self._rhu_outputs(
                 rhu_type=rhu_type,
