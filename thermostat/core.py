@@ -1373,7 +1373,21 @@ class Thermostat(object):
         binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
         dnru_reduction_daily = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         
+        def calc_estimates(parameters, rhu):
+            mu = parameters[0]
+            sigma = parameters[1]
+            rhu = rhu.dropna()
+            temperatures = pd.Series([x.mid for x in rhu.index])
+            function_fit = 0.5*(1-erf((temperatures-mu)/(sigma*np.sqrt(2))))
+            errors = (function_fit.values - rhu.values)**2
+            return np.sqrt(np.sum(errors))
 
+        initial_parameters = [30,10]
+
+        y = least_squares(calc_estimates, initial_parameters, kwargs={'rhu': runtime_rhu.rhu})
+        mu_estimate = y.x[0]
+        sigma_estimate = y.x[1]
+        rhu_model_error = calc_estimates(y.x, rhu)
         return dnru_daily, dnru_reduction_daily
 
     def get_binned_demand_hourly(self, bins):
