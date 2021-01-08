@@ -1326,6 +1326,30 @@ class Thermostat(object):
             .temp_gradient.mean()
         return heating_hvac_constant
     
+    def fit_sigmoid_model(self, runtime_rhu, n_points_threshold=2):
+        def calc_estimates(parameters, runtime_rhu):
+            mu = parameters[0]
+            sigma = parameters[1]
+            rhu = runtime_rhu.dropna()
+            rhu = rhu.loc[rhu.n_points > n_points_threshold]
+            temperatures = pd.Series([x.mid for x in rhu.index])
+            function_fit = 0.5*(1-erf((temperatures-mu)/(sigma*np.sqrt(2))))
+            errors = (function_fit.values - rhu.rhu.values)**2 * rhu.n_points
+            return np.sqrt(np.sum(errors) / np.sum(rhu.n_points))
+
+        initial_parameters = [30, 10]
+        try:
+            y = least_squares(calc_estimates, initial_parameters, kwargs={'runtime_rhu': runtime_rhu})
+            mu_estimate = y.x[0]
+            sigma_estimate = y.x[1]
+            rhu_model_error = calc_estimates(y.x, runtime_rhu)
+        except:
+            mu_estimate = None
+            sigma_estimate = None
+            rhu_model_error = None
+        
+        return mu_estimate, sigma_estimate, rhu_model_error
+        
     def get_binned_demand_daily(self, demand, bins):
         self._protect_resistance_heat()
         self._protect_aux_emerg()
@@ -1346,8 +1370,9 @@ class Thermostat(object):
         self._protect_aux_emerg()
 
         runtime_temp = self.get_resistance_heat_utilization_runtime(core_day_set)
+        runtime_temp['n_points'] = 1
         runtime_temp['bins'] = pd.cut(runtime_temp['temperature'], bins)
-        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
+        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime', 'n_points'].sum()
         runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
         
         if (self.heating_demand is None) | (len(runtime_rhu.dropna().index) == 0):
@@ -1360,7 +1385,7 @@ class Thermostat(object):
         binned_demand['rhu_norm'] = binned_demand.demand * binned_demand.rhu
         dnru_daily = binned_demand.rhu_norm.sum() / binned_demand.demand.sum()
         
-        runtime_temp_baseline = self.runtime_heatpump_baseline.resample('D').agg({
+        runtime_temp_baseline = self.runtime_heatpump_baseline.groupby('day_of_year').agg({
             'temperature': np.mean,
             'heat_runtime': np.sum,
             'aux_runtime': np.sum,
@@ -1368,27 +1393,20 @@ class Thermostat(object):
         runtime_temp_baseline['bins'] = pd.cut(runtime_temp_baseline['temperature'], bins)
         runtime_rhu_baseline = runtime_temp_baseline.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
         runtime_rhu_baseline['rhu_baseline'] = (runtime_rhu_baseline['aux_runtime'] + runtime_rhu_baseline['emg_runtime']) / \
-            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'])
+            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'] + 0.00001)
         binned_demand = binned_demand.merge(runtime_rhu_baseline.loc[:, 'rhu_baseline'], left_on='bins', right_index=True)
         binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
         dnru_reduction_daily = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         
-        def calc_estimates(parameters, rhu):
-            mu = parameters[0]
-            sigma = parameters[1]
-            rhu = rhu.dropna()
-            temperatures = pd.Series([x.mid for x in rhu.index])
-            function_fit = 0.5*(1-erf((temperatures-mu)/(sigma*np.sqrt(2))))
-            errors = (function_fit.values - rhu.values)**2
-            return np.sqrt(np.sum(errors))
+        mu_estimate, sigma_estimate, rhu_model_error = self.fit_sigmoid_model(runtime_rhu)
 
-        initial_parameters = [30,10]
-
-        y = least_squares(calc_estimates, initial_parameters, kwargs={'rhu': runtime_rhu.rhu})
-        mu_estimate = y.x[0]
-        sigma_estimate = y.x[1]
-        rhu_model_error = calc_estimates(y.x, rhu)
-        return dnru_daily, dnru_reduction_daily
+        return {
+            'dnru_daily': dnru_daily,
+            'dnru_reduction_daily': dnru_reduction_daily,
+            'mu_estimate_daily': mu_estimate,
+            'sigma_estimate_daily': sigma_estimate,
+            'rhu_model_error_daily': rhu_model_error
+            }
 
     def get_binned_demand_hourly(self, bins):
         self._protect_resistance_heat()
@@ -1412,11 +1430,11 @@ class Thermostat(object):
         runtime_temp['heat_runtime'] = self.heat_runtime_hourly
         runtime_temp['aux_runtime'] = self.auxiliary_heat_runtime
         runtime_temp['emg_runtime'] = self.emergency_heat_runtime
-        runtime_temp['n_hours'] = 1
+        runtime_temp['n_points'] = 1
         runtime_temp['bins'] = pd.cut(runtime_temp['temperature'], bins)
         runtime_temp = runtime_temp[core_day_set.hourly]
 
-        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime', 'n_hours'].sum()
+        runtime_rhu = runtime_temp.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime', 'n_points'].sum()
         runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
         
         if (len(runtime_rhu.dropna().index) == 0):
@@ -1431,12 +1449,20 @@ class Thermostat(object):
         runtime_temp_baseline['bins'] = pd.cut(runtime_temp_baseline['temperature'], bins)
         runtime_rhu_baseline = runtime_temp_baseline.groupby('bins')['heat_runtime', 'aux_runtime', 'emg_runtime'].sum()
         runtime_rhu_baseline['rhu_baseline'] = (runtime_rhu_baseline['aux_runtime'] + runtime_rhu_baseline['emg_runtime']) / \
-            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'])
+            (runtime_rhu_baseline['heat_runtime'] + runtime_rhu_baseline['emg_runtime'] + 0.00001)
         binned_demand = binned_demand.merge(runtime_rhu_baseline.loc[:, 'rhu_baseline'], left_on='bins', right_index=True)
         binned_demand['rhu_norm_reduction'] = binned_demand.demand * (binned_demand.rhu_baseline - binned_demand.rhu)
         dnru_reduction_hourly = binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         
-        return dnru_hourly, dnru_reduction_hourly
+        mu_estimate, sigma_estimate, rhu_model_error = self.fit_sigmoid_model(runtime_rhu, 48)
+
+        return {
+            'dnru_hourly': dnru_hourly,
+            'dnru_reduction_hourly': dnru_reduction_hourly,
+            'mu_estimate_hourly': mu_estimate,
+            'sigma_estimate_hourly': sigma_estimate,
+            'rhu_model_error_hourly': rhu_model_error
+            }
 
     def get_baseline_hourly_cooling_demand(self, core_cooling_day_set, temp_baseline, tau):
         self._protect_cooling()
@@ -2042,11 +2068,18 @@ class Thermostat(object):
                     RESISTANCE_HEAT_USE_WIDE_BIN,
                     core_heating_day_set,
                     min_runtime_minutes)
-            
-            
+
             # We no longer track different duty cycles (aux, emg, compressor, etc.)
             duty_cycle = None
 
+            additional_outputs.update(self.get_rh_metrics_daily(
+                    bins=RESISTANCE_HEAT_USE_BIN,
+                    core_day_set=core_heating_day_set
+                    ))
+            additional_outputs.update(self.get_rh_metrics_hourly(
+                    bins=RESISTANCE_HEAT_USE_BIN,
+                    core_day_set=core_heating_day_set
+                    ))
             additional_outputs.update(self._rhu_outputs(
                 rhu_type=rhu_type,
                 rhu_bins=rhu,
