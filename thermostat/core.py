@@ -241,13 +241,20 @@ class Thermostat(object):
                 heatpump_baseline_filename) as f:
             self.runtime_heatpump_baseline = pd.read_csv(f)
         
-        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_hz{self.heating_zone_nw}_cz{self.cooling_zone_nw}.csv'
+        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_hz{self.heating_zone_nw}.csv'
         if not resource_exists('thermostat.resources', temperature_baseline_filename):
             temperature_baseline_filename = 'temperature_baseline_default.csv'
         with resource_stream(
                 'thermostat.resources',
                 temperature_baseline_filename) as f:
-            self.hourly_temperature_baseline = pd.read_csv(f)
+            self.hourly_temperature_baseline_heating = pd.read_csv(f)
+        temperature_baseline_filename = f'temperature_baseline_nw_{self.heat_type}_cz{self.cooling_zone_nw}.csv'
+        if not resource_exists('thermostat.resources', temperature_baseline_filename):
+            temperature_baseline_filename = 'temperature_baseline_default.csv'
+        with resource_stream(
+                'thermostat.resources',
+                temperature_baseline_filename) as f:
+            self.hourly_temperature_baseline_cooling = pd.read_csv(f)
         
         
     def _format_rhu(self, rhu_type, low, high, duty_cycle):
@@ -1707,7 +1714,7 @@ class Thermostat(object):
 
             baseline_hourly_regional_demand = self.get_baseline_hourly_cooling_demand(
                 core_cooling_day_set,
-                self.hourly_temperature_baseline,
+                self.hourly_temperature_baseline_cooling,
                 tau,
             )
 
@@ -1920,7 +1927,7 @@ class Thermostat(object):
 
             baseline_hourly_regional_demand = self.get_baseline_hourly_heating_demand(
                 core_heating_day_set,
-                self.hourly_temperature_baseline,
+                self.hourly_temperature_baseline_heating,
                 tau,
             )
 
