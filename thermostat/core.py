@@ -1376,7 +1376,21 @@ class Thermostat(object):
         runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
         
         if (self.heating_demand is None) | (len(runtime_rhu.dropna().index) == 0):
-            return np.nan, np.nan
+            return {
+            'dnru_daily': np.nan,
+            'dnru_reduction_daily': np.nan,
+            'mu_estimate_daily': np.nan,
+            'sigma_estimate_daily': np.nan,
+            'sigmoid_model_error_daily': np.nan
+            }
+        if len(self.heating_demand) == 0:
+            return {
+            'dnru_daily': np.nan,
+            'dnru_reduction_daily': np.nan,
+            'mu_estimate_daily': np.nan,
+            'sigma_estimate_daily': np.nan,
+            'sigmoid_model_error_daily': np.nan
+            }
         
         binned_demand = self.get_binned_demand_daily(
                     self.heating_demand,
@@ -1405,7 +1419,8 @@ class Thermostat(object):
             'dnru_reduction_daily': dnru_reduction_daily,
             'mu_estimate_daily': mu_estimate,
             'sigma_estimate_daily': sigma_estimate,
-            'rhu_model_error_daily': rhu_model_error
+            'sigmoid_model_error_daily': rhu_model_error,
+            'aux_exceeds_heat_runtime_daily': any(runtime_rhu.aux_runtime > runtime_rhu.heat_runtime)
             }
 
     def get_binned_demand_hourly(self, bins):
@@ -1438,7 +1453,21 @@ class Thermostat(object):
         runtime_rhu['rhu'] = (runtime_rhu['aux_runtime'] + runtime_rhu['emg_runtime']) / (runtime_rhu['heat_runtime'] + runtime_rhu['emg_runtime'])
         
         if (len(runtime_rhu.dropna().index) == 0):
-            return np.nan, np.nan
+            return {
+            'dnru_hourly': np.nan,
+            'dnru_reduction_hourly': np.nan,
+            'mu_estimate_hourly': np.nan,
+            'sigma_estimate_hourly': np.nan,
+            'sigmoid_model_error_hourly': np.nan
+            }
+        if len(self.heating_demand) == 0:
+            return {
+            'dnru_hourly': np.nan,
+            'dnru_reduction_hourly': np.nan,
+            'mu_estimate_hourly': np.nan,
+            'sigma_estimate_hourly': np.nan,
+            'sigmoid_model_error_hourly': np.nan
+            }
         
         binned_demand = self.get_binned_demand_hourly(bins)
         binned_demand = binned_demand.merge(runtime_rhu.loc[:, 'rhu'], left_on='bins', right_index=True)
@@ -1461,7 +1490,8 @@ class Thermostat(object):
             'dnru_reduction_hourly': dnru_reduction_hourly,
             'mu_estimate_hourly': mu_estimate,
             'sigma_estimate_hourly': sigma_estimate,
-            'rhu_model_error_hourly': rhu_model_error
+            'sigmoid_model_error_hourly': rhu_model_error,
+            'aux_exceeds_heat_runtime_hourly': any(runtime_rhu.aux_runtime > runtime_rhu.heat_runtime)
             }
 
     def get_baseline_hourly_cooling_demand(self, core_cooling_day_set, temp_baseline, tau):
