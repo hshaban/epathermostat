@@ -1719,7 +1719,7 @@ class Thermostat(object):
             baseline_total_core_day_runtime_baseline_regional = None
             _daily_mean_core_day_demand_baseline_baseline_regional = None
 
-        if self.hourly_temperature_baseline is not None:
+        if self.hourly_temperature_baseline_cooling is not None:
 
             baseline_hourly_regional_demand = self.get_baseline_hourly_cooling_demand(
                 core_cooling_day_set,
@@ -1932,7 +1932,7 @@ class Thermostat(object):
             baseline_total_core_day_runtime_baseline_regional = None
             _daily_mean_core_day_demand_baseline_baseline_regional = None
 
-        if self.hourly_temperature_baseline is not None:
+        if self.hourly_temperature_baseline_heating is not None:
 
             baseline_hourly_regional_demand = self.get_baseline_hourly_heating_demand(
                 core_heating_day_set,
