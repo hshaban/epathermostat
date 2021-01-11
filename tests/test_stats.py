@@ -244,7 +244,7 @@ def combined_dataframe():
 
 def test_combine_output_dataframes(dataframes):
     combined = combine_output_dataframes(dataframes)
-    assert combined.shape == (20, 82)
+    assert combined.shape == (20, 100)
 
 
 def test_compute_summary_statistics(combined_dataframe):
@@ -254,10 +254,10 @@ def test_compute_summary_statistics(combined_dataframe):
         49,
         49,
         49,
-        2133,
-        985,
-        2133,
-        985,
+        2581,
+        1153,
+        2581,
+        1153,
     ]
 
     def test_compute_summary_statistics_advanced(combined_dataframe):
@@ -273,14 +273,14 @@ def test_compute_summary_statistics(combined_dataframe):
             49,
             49,
             49,
-            2133,
-            985,
-            2133,
-            985,
-            2133,
-            985,
-            2133,
-            985,
+            2581,
+            1153,
+            2581,
+            1153,
+            2581,
+            1153,
+            2581,
+            1153,
         ]
 
         def test_summary_statistics_to_csv(combined_dataframe):
@@ -292,7 +292,7 @@ def test_compute_summary_statistics(combined_dataframe):
     assert isinstance(stats_df, pd.DataFrame)
 
     stats_df_reread = pd.read_csv(fname)
-    assert stats_df_reread.shape == (2217, 5)
+    assert stats_df_reread.shape == (2665, 5)
 
 
 def test_certification(combined_dataframe):
