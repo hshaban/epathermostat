@@ -26,6 +26,20 @@ RHU_COLUMNS = [
     'rhu2_50F_to_55F',
     'rhu2_55F_to_60F',
     'rhu2_30F_to_45F',
+    
+    'dnru_daily',
+    'dnru_reduction_daily',
+    'mu_estimate_daily',
+    'sigma_estimate_daily',
+    'sigmoid_model_error_daily',
+    'aux_exceeds_heat_runtime_daily',
+    
+    'dnru_hourly',
+    'dnru_reduction_hourly',
+    'mu_estimate_hourly',
+    'sigma_estimate_hourly',
+    'sigmoid_model_error_hourly',
+    'aux_exceeds_heat_runtime_hourly',
 
 ]
 
