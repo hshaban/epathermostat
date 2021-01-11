@@ -11,7 +11,7 @@ from numpy import nan
 import pytest
 
 # will be modified, recreate every time by scoping to function
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def thermostat_template():
     thermostat_id = "FAKE"
     heat_type = None
@@ -40,6 +40,6 @@ def thermostat_template():
         cool_runtime,
         heat_runtime,
         auxiliary_heat_runtime,
-        emergency_heat_runtime
+        emergency_heat_runtime,
     )
     return thermostat

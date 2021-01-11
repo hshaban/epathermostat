@@ -29,7 +29,7 @@ def main():
         logging.config.dictConfig(json.load(logging_config))
 
     # Uses the 'epathermostat' logging
-    logger = logging.getLogger('epathermostat')
+    logger = logging.getLogger("epathermostat")
     logger.debug("Starting...")
     # Set to True to log additional warning messages, False to only display on
     # console
@@ -51,40 +51,30 @@ def main():
     output_dir = "."
     metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
 
-    output_filename = os.path.join(
-            output_dir,
-            "thermostat_example_output.csv")
+    output_filename = os.path.join(output_dir, "thermostat_example_output.csv")
     metrics_out = metrics_to_csv(metrics, output_filename)
 
     stats = compute_summary_statistics(metrics_out)
     if ADVANCED_STATS:
         stats_advanced = compute_summary_statistics(
-                metrics_out,
-                advanced_filtering=True)
+            metrics_out, advanced_filtering=True
+        )
 
     product_id = "test_product"
 
     certification_filepath = os.path.join(
-            data_dir,
-            "thermostat_example_certification.csv")
+        data_dir, "thermostat_example_certification.csv"
+    )
     certification_to_csv(stats, certification_filepath, product_id)
 
-    stats_filepath = os.path.join(
-            data_dir,
-            "thermostat_example_stats.csv")
-    summary_statistics_to_csv(
-            stats,
-            stats_filepath,
-            product_id)
+    stats_filepath = os.path.join(data_dir, "thermostat_example_stats.csv")
+    summary_statistics_to_csv(stats, stats_filepath, product_id)
 
     if ADVANCED_STATS:
         stats_advanced_filepath = os.path.join(
-                data_dir,
-                "thermostat_example_stats_advanced.csv")
-        summary_statistics_to_csv(
-                stats_advanced,
-                stats_advanced_filepath,
-                product_id)
+            data_dir, "thermostat_example_stats_advanced.csv"
+        )
+        summary_statistics_to_csv(stats_advanced, stats_advanced_filepath, product_id)
 
 
 if __name__ == "__main__":

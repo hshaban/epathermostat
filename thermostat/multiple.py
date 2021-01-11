@@ -2,11 +2,11 @@ from multiprocessing import Pool
 import warnings
 
 
-warnings.simplefilter('module', Warning)
+warnings.simplefilter("module", Warning)
 
 
 def _calc_epa_func(thermostat):
-    """ Takes an individual thermostat and runs the
+    """Takes an individual thermostat and runs the
     calculate_epa_field_savings_metrics method. This method is necessary for
     the multiprocessing pool as map / imap need a function to run on.
 
@@ -23,7 +23,7 @@ def _calc_epa_func(thermostat):
 
 
 def multiple_thermostat_calculate_epa_field_savings_metrics(thermostats):
-    """ Takes a list of thermostats and uses Python's Multiprocessing module to
+    """Takes a list of thermostats and uses Python's Multiprocessing module to
     run as many processes in parallel as the system will allow.
 
     Parameters
@@ -48,7 +48,7 @@ def multiple_thermostat_calculate_epa_field_savings_metrics(thermostats):
     metrics_dict = {}
     for output in results:
         if len(output) > 0:
-            thermostat_id = output[0]['ct_identifier']
+            thermostat_id = output[0]["ct_identifier"]
             metrics_dict[thermostat_id] = output
 
     # Get the order of the thermostats from the original input so the output

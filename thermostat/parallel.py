@@ -8,7 +8,7 @@ from thermostat.stations import get_closest_station_by_zipcode
 
 
 def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=None):
-    """ Batch scheduler for large sets of thermostats. Can either create
+    """Batch scheduler for large sets of thermostats. Can either create
     zipped directories ready be sent to separate processors for parallel
     processing, or unpackaged metadata dataframes for more flexible processing.
 
@@ -39,12 +39,16 @@ def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=
 
     if zip_files:
         if batches_dir is None:
-            message = "Cannot have batches_dir==None when zip_files==True. " \
-                    "Please supply a directory in which to save batches."
+            message = (
+                "Cannot have batches_dir==None when zip_files==True. "
+                "Please supply a directory in which to save batches."
+            )
             raise ValueError(message)
 
     metadata_df = pd.read_csv(metadata_filename, dtype={"zipcode": str})
-    stations = [get_closest_station_by_zipcode(zipcode) for zipcode in metadata_df.zipcode]
+    stations = [
+        get_closest_station_by_zipcode(zipcode) for zipcode in metadata_df.zipcode
+    ]
 
     n_rows = metadata_df.shape[0]
 
@@ -53,8 +57,12 @@ def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=
     for station, (i, row) in zip(stations, metadata_df.iterrows()):
         rows_by_station[station].append(row)
 
-    ordered_rows = [rows_by_station[i[0]] for i in sorted([(s, len(rs))
-                    for s, rs in rows_by_station.items()], key=(lambda x: x[1]))]
+    ordered_rows = [
+        rows_by_station[i[0]]
+        for i in sorted(
+            [(s, len(rs)) for s, rs in rows_by_station.items()], key=(lambda x: x[1])
+        )
+    ]
 
     # iterate over row groups, greedily adding contents to batches
 
@@ -72,7 +80,7 @@ def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=
             target_batch_size = batch_sizes[batch_i]
             batch = batches[batch_i]
             space_left = target_batch_size - len(batch)
-            rows_to_add = rows[n_rows_taken:n_rows_taken + space_left]
+            rows_to_add = rows[n_rows_taken : n_rows_taken + space_left]
             n_rows_taken += len(rows_to_add)
             batch.extend(rows_to_add)
 
@@ -93,12 +101,16 @@ def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=
             _, fname = tempfile.mkstemp()
             batch_df.to_csv(fname, index=False)
 
-            with ZipFile(batch_zipfile_name, 'w') as batch_zip:
-                batch_zip.write(fname, arcname=os.path.join('data', 'metadata.csv'))
+            with ZipFile(batch_zipfile_name, "w") as batch_zip:
+                batch_zip.write(fname, arcname=os.path.join("data", "metadata.csv"))
 
                 for filename in batch_df.interval_data_filename:
-                    interval_data_source = os.path.join(os.path.dirname(metadata_filename), filename)
-                    batch_zip.write(interval_data_source, arcname=os.path.join('data', filename))
+                    interval_data_source = os.path.join(
+                        os.path.dirname(metadata_filename), filename
+                    )
+                    batch_zip.write(
+                        interval_data_source, arcname=os.path.join("data", filename)
+                    )
 
         return batch_zipfile_names
 
@@ -108,5 +120,5 @@ def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=
 
 def _get_batch_sizes(n_rows, n_batches):
     n_base = int(n_rows / n_batches)
-    remainder = (n_rows % n_batches)
+    remainder = n_rows % n_batches
     return [n_base + int(i < remainder) for i in range(n_batches)]

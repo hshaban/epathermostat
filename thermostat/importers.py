@@ -1,15 +1,15 @@
 from thermostat.core import Thermostat
 from thermostat.equipment_type import (
-        has_heating,
-        has_cooling,
-        has_auxiliary,
-        has_emergency,
-        has_two_stage_cooling,
-        has_two_stage_heating,
-        has_multi_stage_cooling,
-        has_multi_stage_heating,
-        first_stage_capacity_ratio,
-        )
+    has_heating,
+    has_cooling,
+    has_auxiliary,
+    has_emergency,
+    has_two_stage_cooling,
+    has_two_stage_heating,
+    has_multi_stage_cooling,
+    has_multi_stage_heating,
+    first_stage_capacity_ratio,
+)
 
 import pandas as pd
 from thermostat.stations import get_closest_station_by_zipcode
@@ -36,20 +36,20 @@ AVAILABLE_PROCESSES = min(NUMBER_OF_CORES, MAX_FTP_CONNECTIONS)
 
 
 logger = logging.getLogger(__name__)
-warnings.simplefilter('module', Warning)
+warnings.simplefilter("module", Warning)
 
 INTERVAL_COLUMNS = {
-        'datetime',
-        'cool_runtime_stg1',
-        'cool_runtime_stg2',
-        'cool_runtime_equiv',
-        'heat_runtime_stg1',
-        'heat_runtime_stg2',
-        'heat_runtime_equiv',
-        'emergency_heat_runtime',
-        'auxiliary_heat_runtime',
-        'temp_in',
-        }
+    "datetime",
+    "cool_runtime_stg1",
+    "cool_runtime_stg2",
+    "cool_runtime_equiv",
+    "heat_runtime_stg1",
+    "heat_runtime_stg2",
+    "heat_runtime_equiv",
+    "emergency_heat_runtime",
+    "auxiliary_heat_runtime",
+    "temp_in",
+}
 
 
 class ZCTAError(Exception):
@@ -57,18 +57,18 @@ class ZCTAError(Exception):
 
 
 def _prime_eeweather_cache():
-    """ Primes the eemeter / eeweather caches by doing a non-existent query
+    """Primes the eemeter / eeweather caches by doing a non-existent query
     This creates the cache directories sooner than if they were created
     during normal processing (which can lead to a race condition and missing
     thermostats)
     """
     sql_json = KeyValueStore()
-    if sql_json.key_exists('0') is not False:
+    if sql_json.key_exists("0") is not False:
         raise Exception("eeweather cache was not properly primed. Aborting.")
 
 
 def save_json_cache(index, thermostat_id, station, cache_path=None):
-    """ Saves the cached results from eeweather into a JSON file.
+    """Saves the cached results from eeweather into a JSON file.
 
     Parameters
     ----------
@@ -87,24 +87,19 @@ def save_json_cache(index, thermostat_id, station, cache_path=None):
     sqlite_json_store = KeyValueStore()
     years = index.groupby(index.year).keys()
     for year in years:
-        filename = "ISD-{station}-{year}.json".format(
-                station=station,
-                year=year)
+        filename = "ISD-{station}-{year}.json".format(station=station, year=year)
         json_cache[filename] = sqlite_json_store.retrieve_json(filename)
 
     if cache_path is None:
-        directory = os.path.join(
-            os.curdir,
-            "epathermostat_weather_data")
+        directory = os.path.join(os.curdir, "epathermostat_weather_data")
     else:
-        directory = os.path.normpath(
-            cache_path)
+        directory = os.path.normpath(cache_path)
 
     thermostat_filename = "{thermostat_id}.json".format(thermostat_id=thermostat_id)
     thermostat_path = os.path.join(directory, thermostat_filename)
     try:
         os.makedirs(os.path.dirname(directory), exist_ok=True)
-        with open(thermostat_path, 'w') as outfile:
+        with open(thermostat_path, "w") as outfile:
             json.dump(json_cache, outfile)
 
     except Exception as e:
@@ -129,16 +124,17 @@ def normalize_utc_offset(utc_offset):
         if int(utc_offset) == 0:
             utc_offset = "+0"
         delta = dateutil.parser.parse(
-            "2000-01-01T00:00:00" + str(utc_offset)).tzinfo.utcoffset(None)
+            "2000-01-01T00:00:00" + str(utc_offset)
+        ).tzinfo.utcoffset(None)
         return delta
 
     except (ValueError, TypeError, AttributeError) as e:
-        raise TypeError("Invalid UTC offset: {} ({})".format(
-           utc_offset,
-           e))
+        raise TypeError("Invalid UTC offset: {} ({})".format(utc_offset, e))
 
 
-def from_csv(metadata_filename, verbose=False, save_cache=False, shuffle=True, cache_path=None):
+def from_csv(
+    metadata_filename, verbose=False, save_cache=False, shuffle=True, cache_path=None
+):
     """
     Creates Thermostat objects from data stored in CSV files.
 
@@ -173,10 +169,10 @@ def from_csv(metadata_filename, verbose=False, save_cache=False, shuffle=True, c
             "cool_stage": str,
             "zipcode": str,
             "utc_offset": str,
-            "interval_data_filename": str
-        }
+            "interval_data_filename": str,
+        },
     )
-    metadata.fillna('', inplace=True)
+    metadata.fillna("", inplace=True)
 
     # Shuffle the results to help alleviate cache issues
     if shuffle:
@@ -185,11 +181,12 @@ def from_csv(metadata_filename, verbose=False, save_cache=False, shuffle=True, c
 
     p = Pool(AVAILABLE_PROCESSES)
     multiprocess_func_partial = partial(
-            _multiprocess_func,
-            metadata_filename=metadata_filename,
-            verbose=verbose,
-            save_cache=save_cache,
-            cache_path=cache_path)
+        _multiprocess_func,
+        metadata_filename=metadata_filename,
+        verbose=verbose,
+        save_cache=save_cache,
+        cache_path=cache_path,
+    )
     result_list = p.imap(multiprocess_func_partial, metadata.iterrows())
     p.close()
     p.join()
@@ -203,9 +200,12 @@ def from_csv(metadata_filename, verbose=False, save_cache=False, shuffle=True, c
     missing_thermostats = metadata_thermostat_ids.difference(loaded_thermostat_ids)
     missing_thermostats_num = len(missing_thermostats)
     if missing_thermostats_num > 0:
-        logging.warning("Unable to load {} thermostat records because of "
-                        "errors. Please check the logs for the following thermostats:".format(
-                            missing_thermostats_num))
+        logging.warning(
+            "Unable to load {} thermostat records because of "
+            "errors. Please check the logs for the following thermostats:".format(
+                missing_thermostats_num
+            )
+        )
         for thermostat in missing_thermostats:
             logging.warning(thermostat)
 
@@ -213,28 +213,32 @@ def from_csv(metadata_filename, verbose=False, save_cache=False, shuffle=True, c
     return iter(results)
 
 
-def _multiprocess_func(metadata, metadata_filename, verbose=False, save_cache=False, cache_path=None):
-    """ This function is a partial function for multiproccessing and shares the same arguments as from_csv.
+def _multiprocess_func(
+    metadata, metadata_filename, verbose=False, save_cache=False, cache_path=None
+):
+    """This function is a partial function for multiproccessing and shares the same arguments as from_csv.
     It is not intended to be called directly."""
     i, row = metadata
     logger.info("Importing thermostat {}".format(row.thermostat_id))
     if verbose and logger.getEffectiveLevel() > logging.INFO:
         print("Importing thermostat {}".format(row.thermostat_id))
 
-    interval_data_filename = os.path.join(os.path.dirname(metadata_filename), row.interval_data_filename)
+    interval_data_filename = os.path.join(
+        os.path.dirname(metadata_filename), row.interval_data_filename
+    )
 
     try:
         thermostat = get_single_thermostat(
-                thermostat_id=row.thermostat_id,
-                zipcode=row.zipcode,
-                heat_type=row.heat_type,
-                heat_stage=row.heat_stage,
-                cool_type=row.cool_type,
-                cool_stage=row.cool_stage,
-                utc_offset=row.utc_offset,
-                interval_data_filename=interval_data_filename,
-                save_cache=save_cache,
-                cache_path=cache_path,
+            thermostat_id=row.thermostat_id,
+            zipcode=row.zipcode,
+            heat_type=row.heat_type,
+            heat_stage=row.heat_stage,
+            cool_type=row.cool_type,
+            cool_stage=row.cool_stage,
+            utc_offset=row.utc_offset,
+            interval_data_filename=interval_data_filename,
+            save_cache=save_cache,
+            cache_path=cache_path,
         )
     except ZCTAError as e:
         # Could not locate a station for the thermostat. Warn and skip.
@@ -246,31 +250,40 @@ def _multiprocess_func(metadata, metadata_filename, verbose=False, save_cache=Fa
             "codes (which do not always map well to locations) and "
             "Census Bureau ZCTAs (which usually do). Please supply "
             "a zipcode which corresponds to a US Census Bureau ZCTA."
-            "\nError Message: {}"
-            .format(row.thermostat_id, row.zipcode, e))
+            "\nError Message: {}".format(row.thermostat_id, row.zipcode, e)
+        )
         return
 
     except ISDDataNotAvailableError as e:
         warnings.warn(
             "Skipping import of thermostat(id={} because the NCDC "
-            "does not have data: {}"
-            .format(row.thermostat_id, e))
+            "does not have data: {}".format(row.thermostat_id, e)
+        )
         return
 
     except Exception as e:
         warnings.warn(
             "Skipping import of thermostat(id={}) because of "
-            "the following error: {}"
-            .format(row.thermostat_id, e))
+            "the following error: {}".format(row.thermostat_id, e)
+        )
         return
 
     return thermostat
 
 
-def get_single_thermostat(thermostat_id, zipcode,
-                          heat_type, heat_stage, cool_type, cool_stage,
-                          utc_offset, interval_data_filename, save_cache=False, cache_path=None):
-    """ Load a single thermostat directly from an interval data file.
+def get_single_thermostat(
+    thermostat_id,
+    zipcode,
+    heat_type,
+    heat_stage,
+    cool_type,
+    cool_stage,
+    utc_offset,
+    interval_data_filename,
+    save_cache=False,
+    cache_path=None,
+):
+    """Load a single thermostat directly from an interval data file.
 
     Parameters
     ----------
@@ -302,8 +315,10 @@ def get_single_thermostat(thermostat_id, zipcode,
     station = get_closest_station_by_zipcode(zipcode)
 
     if station is None:
-        message = "Could not locate a valid source of outdoor temperature " \
-                "data for ZIP code {}".format(zipcode)
+        message = (
+            "Could not locate a valid source of outdoor temperature "
+            "data for ZIP code {}".format(zipcode)
+        )
         raise ZCTAError(message)
 
     df = pd.read_csv(interval_data_filename)
@@ -316,17 +331,23 @@ def get_single_thermostat(thermostat_id, zipcode,
 
     # load indices
     date_time = pd.to_datetime(df["datetime"])
-    df['datetime'] = date_time
+    df["datetime"] = date_time
     # daily_index = pd.date_range(start=date_time[0], periods=date_time.shape[0] / 24, freq="D")
-    hourly_index = pd.date_range(start=date_time[0], periods=date_time.shape[0], freq="H")
-    hourly_index_utc = pd.date_range(start=date_time[0], periods=date_time.shape[0], freq="H", tz=pytz.UTC)
+    hourly_index = pd.date_range(
+        start=date_time[0], periods=date_time.shape[0], freq="H"
+    )
+    hourly_index_utc = pd.date_range(
+        start=date_time[0], periods=date_time.shape[0], freq="H", tz=pytz.UTC
+    )
 
     # raise an error if dates are not aligned
     if not all(date_time == hourly_index):
         missing_hours = set(hourly_index).difference(set(date_time))
         duplicates = list(date_time[date_time.duplicated()])
-        message = ("Dates provided for thermostat_id={} may contain some "
-                   "which are out of order, missing, or duplicated.".format(thermostat_id))
+        message = (
+            "Dates provided for thermostat_id={} may contain some "
+            "which are out of order, missing, or duplicated.".format(thermostat_id)
+        )
         if len(duplicates) > 0:
             message = message + " (Possible duplicated hours: {})".format(duplicates)
         elif len(missing_hours) > 0:
@@ -341,13 +362,21 @@ def get_single_thermostat(thermostat_id, zipcode,
     temp_in = _create_series(df.temp_in, hourly_index)
 
     utc_offset = normalize_utc_offset(utc_offset)
-    temp_out = get_indexed_temperatures_eeweather(station, hourly_index_utc - utc_offset)
+    temp_out = get_indexed_temperatures_eeweather(
+        station, hourly_index_utc - utc_offset
+    )
     temp_out.index = hourly_index
 
     # load daily time series values
-    auxiliary_heat_runtime, emergency_heat_runtime = _calculate_aux_emerg_runtime(df, thermostat_id, heat_type, heat_stage, hourly_index)
-    cool_runtime = _calculate_cool_runtime(df, thermostat_id, cool_type, cool_stage, hourly_index)
-    heat_runtime = _calculate_heat_runtime(df, thermostat_id, heat_type, heat_stage, hourly_index)
+    auxiliary_heat_runtime, emergency_heat_runtime = _calculate_aux_emerg_runtime(
+        df, thermostat_id, heat_type, heat_stage, hourly_index
+    )
+    cool_runtime = _calculate_cool_runtime(
+        df, thermostat_id, cool_type, cool_stage, hourly_index
+    )
+    heat_runtime = _calculate_heat_runtime(
+        df, thermostat_id, heat_type, heat_stage, hourly_index
+    )
 
     # create thermostat instance
     thermostat = Thermostat(
@@ -363,19 +392,24 @@ def get_single_thermostat(thermostat_id, zipcode,
         cool_runtime,
         heat_runtime,
         auxiliary_heat_runtime,
-        emergency_heat_runtime
+        emergency_heat_runtime,
     )
     return thermostat
 
 
 def _calculate_cool_runtime(df, thermostat_id, cool_type, cool_stage, hourly_index):
     if has_cooling(cool_type):
-        if df.cool_runtime_stg1.gt(60).any() or \
-                df.cool_runtime_stg2.gt(60).any() or \
-                df.cool_runtime_equiv.gt(60).any():
-            warnings.warn("For thermostat {}, cooling runtime data was larger than 60 minutes"
-                          " for one or more hours, which is impossible. Please check the data file."
-                          .format(thermostat_id))
+        if (
+            df.cool_runtime_stg1.gt(60).any()
+            or df.cool_runtime_stg2.gt(60).any()
+            or df.cool_runtime_equiv.gt(60).any()
+        ):
+            warnings.warn(
+                "For thermostat {}, cooling runtime data was larger than 60 minutes"
+                " for one or more hours, which is impossible. Please check the data file.".format(
+                    thermostat_id
+                )
+            )
             return
 
         if has_multi_stage_cooling(cool_stage):
@@ -387,7 +421,10 @@ def _calculate_cool_runtime(df, thermostat_id, cool_type, cool_stage, hourly_ind
             if df.cool_runtime_equiv.max() > 0.0:
                 cool_runtime = _create_series(df.cool_runtime_equiv, hourly_index)
             else:
-                cool_runtime_both_stg = (first_stage_capacity_ratio(cool_type) * (df.cool_runtime_stg1 - df.cool_runtime_stg2)) + df.cool_runtime_stg2
+                cool_runtime_both_stg = (
+                    first_stage_capacity_ratio(cool_type)
+                    * (df.cool_runtime_stg1 - df.cool_runtime_stg2)
+                ) + df.cool_runtime_stg2
                 cool_runtime = _create_series(cool_runtime_both_stg, hourly_index)
         else:
             cool_runtime = _create_series(df.cool_runtime_stg1, hourly_index)
@@ -398,12 +435,17 @@ def _calculate_cool_runtime(df, thermostat_id, cool_type, cool_stage, hourly_ind
 
 def _calculate_heat_runtime(df, thermostat_id, heat_type, heat_stage, hourly_index):
     if has_heating(heat_type):
-        if df.heat_runtime_stg1.gt(60).any() or \
-                df.heat_runtime_stg2.gt(60).any() or \
-                df.heat_runtime_equiv.gt(60).any():
-            warnings.warn("For thermostat {}, heating runtime data was larger than 60 minutes"
-                          " for one or more hours, which is impossible. Please check the data file."
-                          .format(thermostat_id))
+        if (
+            df.heat_runtime_stg1.gt(60).any()
+            or df.heat_runtime_stg2.gt(60).any()
+            or df.heat_runtime_equiv.gt(60).any()
+        ):
+            warnings.warn(
+                "For thermostat {}, heating runtime data was larger than 60 minutes"
+                " for one or more hours, which is impossible. Please check the data file.".format(
+                    thermostat_id
+                )
+            )
             return
 
         if has_multi_stage_heating(heat_stage):
@@ -415,7 +457,10 @@ def _calculate_heat_runtime(df, thermostat_id, heat_type, heat_stage, hourly_ind
             if df.heat_runtime_equiv.max() > 0.0:
                 heat_runtime = _create_series(df.heat_runtime_equiv, hourly_index)
             else:
-                heat_runtime_both_stg = (first_stage_capacity_ratio(heat_type) * (df.heat_runtime_stg1 - df.heat_runtime_stg2)) + df.heat_runtime_stg2
+                heat_runtime_both_stg = (
+                    first_stage_capacity_ratio(heat_type)
+                    * (df.heat_runtime_stg1 - df.heat_runtime_stg2)
+                ) + df.heat_runtime_stg2
                 heat_runtime = _create_series(heat_runtime_both_stg, hourly_index)
         else:
             heat_runtime = _create_series(df.heat_runtime_stg1, hourly_index)
@@ -424,19 +469,27 @@ def _calculate_heat_runtime(df, thermostat_id, heat_type, heat_stage, hourly_ind
     return heat_runtime
 
 
-def _calculate_aux_emerg_runtime(df, thermostat_id, heat_type, heat_stage, hourly_index):
+def _calculate_aux_emerg_runtime(
+    df, thermostat_id, heat_type, heat_stage, hourly_index
+):
     if has_auxiliary(heat_type) and has_emergency(heat_type):
         auxiliary_heat_runtime = _create_series(df.auxiliary_heat_runtime, hourly_index)
         emergency_heat_runtime = _create_series(df.emergency_heat_runtime, hourly_index)
         if auxiliary_heat_runtime.gt(60).any():
-            warnings.warn("For thermostat {}, auxiliary runtime data was larger than 60 minutes"
-                          " for one or more hours, which is impossible. Please check the data file."
-                          .format(thermostat_id))
+            warnings.warn(
+                "For thermostat {}, auxiliary runtime data was larger than 60 minutes"
+                " for one or more hours, which is impossible. Please check the data file.".format(
+                    thermostat_id
+                )
+            )
             return
         if emergency_heat_runtime.gt(60).any():
-            warnings.warn("For thermostat {}, emergency runtime data was larger than 60 minutes"
-                          " for one or more hours, which is impossible. Please check the data file."
-                          .format(thermostat_id))
+            warnings.warn(
+                "For thermostat {}, emergency runtime data was larger than 60 minutes"
+                " for one or more hours, which is impossible. Please check the data file.".format(
+                    thermostat_id
+                )
+            )
             return
     else:
         auxiliary_heat_runtime = None
