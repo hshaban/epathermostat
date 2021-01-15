@@ -1545,23 +1545,26 @@ class Thermostat(object):
             rhu = rhu.loc[rhu.n_points > n_points_threshold]
             temperatures = pd.Series([x.mid for x in rhu.index])
             function_fit = 0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
-            errors = (function_fit.values - rhu.rhu.values) ** 2 * rhu.n_points
+            errors = ((function_fit.values - rhu.rhu.values) ** 2) 
             return np.sqrt(np.sum(errors) / np.sum(rhu.n_points))
 
-        initial_parameters = [30, 10]
+        initial_parameters = [30, 20]
         try:
             y = least_squares(
                 calc_estimates, initial_parameters, kwargs={"runtime_rhu": runtime_rhu}
             )
             mu_estimate = y.x[0]
             sigma_estimate = y.x[1]
-            rhu_model_error = calc_estimates(y.x, runtime_rhu)
+            sigmoid_model_error = calc_estimates(y.x, runtime_rhu)
+            runtime_rhu['estimated_rhu'] = 0.5 * (1 - erf(([x.mid for x in runtime_rhu.index] - mu_estimate) / (sigma_estimate * np.sqrt(2))))
+            sigmoid_integral = np.sum(runtime_rhu.estimated_rhu)
         except:
             mu_estimate = None
             sigma_estimate = None
-            rhu_model_error = None
+            sigmoid_model_error = None
+            sigmoid_integral = None
 
-        return mu_estimate, sigma_estimate, rhu_model_error
+        return mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral
 
     def get_binned_demand_daily(self, demand, bins):
         self._protect_resistance_heat()
@@ -1601,6 +1604,8 @@ class Thermostat(object):
                 "mu_estimate_daily": np.nan,
                 "sigma_estimate_daily": np.nan,
                 "sigmoid_model_error_daily": np.nan,
+                "sigmoid_integral_daily": np.nan,
+                "aux_exceeds_heat_runtime_daily": np.nan
             }
         if len(self.heating_demand) == 0:
             return {
@@ -1609,6 +1614,8 @@ class Thermostat(object):
                 "mu_estimate_daily": np.nan,
                 "sigma_estimate_daily": np.nan,
                 "sigmoid_model_error_daily": np.nan,
+                "sigmoid_integral_daily": np.nan,
+                "aux_exceeds_heat_runtime_daily": np.nan
             }
 
         binned_demand = self.get_binned_demand_daily(self.heating_demand, bins)
@@ -1653,7 +1660,7 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
-        mu_estimate, sigma_estimate, rhu_model_error = self.fit_sigmoid_model(
+        mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral = self.fit_sigmoid_model(
             runtime_rhu
         )
 
@@ -1662,7 +1669,8 @@ class Thermostat(object):
             "dnru_reduction_daily": dnru_reduction_daily,
             "mu_estimate_daily": mu_estimate,
             "sigma_estimate_daily": sigma_estimate,
-            "sigmoid_model_error_daily": rhu_model_error,
+            "sigmoid_model_error_daily": sigmoid_model_error,
+            "sigmoid_integral_daily": sigmoid_integral,
             "aux_exceeds_heat_runtime_daily": any(
                 runtime_rhu.aux_runtime > runtime_rhu.heat_runtime
             ),
@@ -1712,6 +1720,8 @@ class Thermostat(object):
                 "mu_estimate_hourly": np.nan,
                 "sigma_estimate_hourly": np.nan,
                 "sigmoid_model_error_hourly": np.nan,
+                "sigmoid_integral_hourly": np.nan,
+                "aux_exceeds_heat_runtime_hourly": np.nan
             }
         if len(self.heating_demand) == 0:
             return {
@@ -1720,6 +1730,8 @@ class Thermostat(object):
                 "mu_estimate_hourly": np.nan,
                 "sigma_estimate_hourly": np.nan,
                 "sigmoid_model_error_hourly": np.nan,
+                "sigmoid_integral_hourly": np.nan,
+                "aux_exceeds_heat_runtime_hourly": np.nan
             }
 
         binned_demand = self.get_binned_demand_hourly(bins)
@@ -1755,7 +1767,7 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
-        mu_estimate, sigma_estimate, rhu_model_error = self.fit_sigmoid_model(
+        mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral = self.fit_sigmoid_model(
             runtime_rhu, 48
         )
 
@@ -1764,7 +1776,8 @@ class Thermostat(object):
             "dnru_reduction_hourly": dnru_reduction_hourly,
             "mu_estimate_hourly": mu_estimate,
             "sigma_estimate_hourly": sigma_estimate,
-            "sigmoid_model_error_hourly": rhu_model_error,
+            "sigmoid_model_error_hourly": sigmoid_model_error,
+            "sigmoid_integral_hourly": sigmoid_integral,
             "aux_exceeds_heat_runtime_hourly": any(
                 runtime_rhu.aux_runtime > runtime_rhu.heat_runtime
             ),
