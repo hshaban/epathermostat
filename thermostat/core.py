@@ -1474,12 +1474,12 @@ class Thermostat(object):
         df = pd.DataFrame(self.temperature_in)
         if len(df.index) == 0:
             return np.nan, np.nan
-        df['hour_of_day'] = df.index.hour
-        df['day_of_week'] = df.index.weekday
-        df['hour_of_week'] = df.day_of_week * 24 + df.hour_of_day
-        
+        df["hour_of_day"] = df.index.hour
+        df["day_of_week"] = df.index.weekday
+        df["hour_of_week"] = df.day_of_week * 24 + df.hour_of_day
+
         df = df.loc[core_day_set.hourly]
-        df_grouped = df.groupby('hour_of_week').agg({'temp_in': np.mean})
+        df_grouped = df.groupby("hour_of_week").agg({"temp_in": np.mean})
 
         return df.temp_in.std(), df_grouped.temp_in.std()
 
@@ -1559,18 +1559,29 @@ class Thermostat(object):
             rhu = rhu.loc[rhu.n_points > n_points_threshold]
             temperatures = pd.Series([x.mid for x in rhu.index])
             function_fit = 0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
-            errors = ((function_fit.values - rhu.rhu.values) ** 2) * np.log(rhu.n_points)
+            errors = ((function_fit.values - rhu.rhu.values) ** 2) * np.log(
+                rhu.n_points
+            )
             return np.sqrt(np.sum(errors))
 
         initial_parameters = [30, 20]
         try:
             y = least_squares(
-                calc_estimates, initial_parameters, kwargs={"runtime_rhu": runtime_rhu}, xtol=1e-3
+                calc_estimates,
+                initial_parameters,
+                kwargs={"runtime_rhu": runtime_rhu},
+                xtol=1e-3,
             )
             mu_estimate = y.x[0]
             sigma_estimate = y.x[1]
             sigmoid_model_error = calc_estimates(y.x, runtime_rhu)
-            runtime_rhu['estimated_rhu'] = 0.5 * (1 - erf(([x.mid for x in runtime_rhu.index] - mu_estimate) / (sigma_estimate * np.sqrt(2))))
+            runtime_rhu["estimated_rhu"] = 0.5 * (
+                1
+                - erf(
+                    ([x.mid for x in runtime_rhu.index] - mu_estimate)
+                    / (sigma_estimate * np.sqrt(2))
+                )
+            )
             sigmoid_integral = np.sum(runtime_rhu.estimated_rhu)
         except:
             mu_estimate = None
@@ -1619,7 +1630,7 @@ class Thermostat(object):
                 "sigma_estimate_daily": np.nan,
                 "sigmoid_model_error_daily": np.nan,
                 "sigmoid_integral_daily": np.nan,
-                "aux_exceeds_heat_runtime_daily": np.nan
+                "aux_exceeds_heat_runtime_daily": np.nan,
             }
         if len(self.heating_demand) == 0:
             return {
@@ -1629,7 +1640,7 @@ class Thermostat(object):
                 "sigma_estimate_daily": np.nan,
                 "sigmoid_model_error_daily": np.nan,
                 "sigmoid_integral_daily": np.nan,
-                "aux_exceeds_heat_runtime_daily": np.nan
+                "aux_exceeds_heat_runtime_daily": np.nan,
             }
 
         binned_demand = self.get_binned_demand_daily(self.heating_demand, bins)
@@ -1674,9 +1685,12 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
-        mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral = self.fit_sigmoid_model(
-            runtime_rhu
-        )
+        (
+            mu_estimate,
+            sigma_estimate,
+            sigmoid_model_error,
+            sigmoid_integral,
+        ) = self.fit_sigmoid_model(runtime_rhu)
 
         return {
             "dnru_daily": dnru_daily,
@@ -1735,7 +1749,7 @@ class Thermostat(object):
                 "sigma_estimate_hourly": np.nan,
                 "sigmoid_model_error_hourly": np.nan,
                 "sigmoid_integral_hourly": np.nan,
-                "aux_exceeds_heat_runtime_hourly": np.nan
+                "aux_exceeds_heat_runtime_hourly": np.nan,
             }
         if len(self.heating_demand) == 0:
             return {
@@ -1745,7 +1759,7 @@ class Thermostat(object):
                 "sigma_estimate_hourly": np.nan,
                 "sigmoid_model_error_hourly": np.nan,
                 "sigmoid_integral_hourly": np.nan,
-                "aux_exceeds_heat_runtime_hourly": np.nan
+                "aux_exceeds_heat_runtime_hourly": np.nan,
             }
 
         binned_demand = self.get_binned_demand_hourly(bins)
@@ -1781,9 +1795,12 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
-        mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral = self.fit_sigmoid_model(
-            runtime_rhu, 48
-        )
+        (
+            mu_estimate,
+            sigma_estimate,
+            sigmoid_model_error,
+            sigmoid_integral,
+        ) = self.fit_sigmoid_model(runtime_rhu, 48)
 
         return {
             "dnru_hourly": dnru_hourly,
@@ -2128,7 +2145,10 @@ class Thermostat(object):
             core_cooling_day_set
         )
         hvac_constant = self.get_cooling_hvac_constant(core_cooling_day_set)
-        overall_temperature_variance, weekly_temperature_variance = self.get_temperature_variance(core_cooling_day_set)
+        (
+            overall_temperature_variance,
+            weekly_temperature_variance,
+        ) = self.get_temperature_variance(core_cooling_day_set)
 
         outputs = {
             "sw_version": get_version(),
@@ -2191,7 +2211,7 @@ class Thermostat(object):
             "heat_loss_constant": heat_loss_constant,
             "hvac_constant": hvac_constant,
             "overall_temperature_variance": overall_temperature_variance,
-            "weekly_temperature_variance": weekly_temperature_variance
+            "weekly_temperature_variance": weekly_temperature_variance,
         }
         return outputs
 
@@ -2387,8 +2407,10 @@ class Thermostat(object):
             core_heating_day_set
         )
         hvac_constant = self.get_heating_hvac_constant(core_heating_day_set)
-        overall_temperature_variance, weekly_temperature_variance = self.get_temperature_variance(core_heating_day_set)
-
+        (
+            overall_temperature_variance,
+            weekly_temperature_variance,
+        ) = self.get_temperature_variance(core_heating_day_set)
 
         outputs = {
             "sw_version": get_version(),
@@ -2451,7 +2473,7 @@ class Thermostat(object):
             "heat_loss_constant": heat_loss_constant,
             "hvac_constant": hvac_constant,
             "overall_temperature_variance": overall_temperature_variance,
-            "weekly_temperature_variance": weekly_temperature_variance
+            "weekly_temperature_variance": weekly_temperature_variance,
         }
 
         return outputs

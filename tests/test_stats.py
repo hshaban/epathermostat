@@ -253,28 +253,39 @@ def test_combine_output_dataframes(dataframes):
 
 def test_compute_summary_statistics(combined_dataframe):
     summary_statistics = compute_summary_statistics(combined_dataframe)
-    assert [len(s) for s in summary_statistics] == [49, 49, 49, 49, 2693, 1209, 2693, 1209]
+    assert [len(s) for s in summary_statistics] == [
+        49,
+        49,
+        49,
+        49,
+        2693,
+        1209,
+        2693,
+        1209,
+    ]
 
     def test_compute_summary_statistics_advanced(combined_dataframe):
         summary_statistics = compute_summary_statistics(
             combined_dataframe, advanced_filtering=True
         )
-        assert [len(s) for s in summary_statistics] == [49,
-         49,
-         49,
-         49,
-         49,
-         49,
-         49,
-         49,
-         2693,
-         1209,
-         2693,
-         1209,
-         2693,
-         1209,
-         2693,
-         1209]
+        assert [len(s) for s in summary_statistics] == [
+            49,
+            49,
+            49,
+            49,
+            49,
+            49,
+            49,
+            49,
+            2693,
+            1209,
+            2693,
+            1209,
+            2693,
+            1209,
+            2693,
+            1209,
+        ]
 
         def test_summary_statistics_to_csv(combined_dataframe):
             summary_statistics = compute_summary_statistics(combined_dataframe)
