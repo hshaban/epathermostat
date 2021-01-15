@@ -1470,6 +1470,19 @@ class Thermostat(object):
         )
         return heat_gain_constant, heat_loss_constant
 
+    def get_temperature_variance(self, core_day_set):
+        df = pd.DataFrame(self.temperature_in)
+        if len(df.index) == 0:
+            return np.nan, np.nan
+        df['hour_of_day'] = df.index.hour
+        df['day_of_week'] = df.index.weekday
+        df['hour_of_week'] = df.day_of_week * 24 + df.hour_of_day
+        
+        df = df.loc[core_day_set.hourly]
+        df_grouped = df.groupby('hour_of_week').agg({'temp_in': np.mean})
+
+        return df.temp_in.std(), df_grouped.temp_in.std()
+
     def get_cooling_hvac_constant(self, core_day_set):
         """Calculate the HVAC time constant for a specific day set.
 
@@ -2115,6 +2128,7 @@ class Thermostat(object):
             core_cooling_day_set
         )
         hvac_constant = self.get_cooling_hvac_constant(core_cooling_day_set)
+        overall_temperature_variance, weekly_temperature_variance = self.get_temperature_variance(core_cooling_day_set)
 
         outputs = {
             "sw_version": get_version(),
@@ -2176,6 +2190,8 @@ class Thermostat(object):
             "heat_gain_constant": heat_gain_constant,
             "heat_loss_constant": heat_loss_constant,
             "hvac_constant": hvac_constant,
+            "overall_temperature_variance": overall_temperature_variance,
+            "weekly_temperature_variance": weekly_temperature_variance
         }
         return outputs
 
@@ -2371,6 +2387,8 @@ class Thermostat(object):
             core_heating_day_set
         )
         hvac_constant = self.get_heating_hvac_constant(core_heating_day_set)
+        overall_temperature_variance, weekly_temperature_variance = self.get_temperature_variance(core_heating_day_set)
+
 
         outputs = {
             "sw_version": get_version(),
@@ -2432,6 +2450,8 @@ class Thermostat(object):
             "heat_gain_constant": heat_gain_constant,
             "heat_loss_constant": heat_loss_constant,
             "hvac_constant": hvac_constant,
+            "overall_temperature_variance": overall_temperature_variance,
+            "weekly_temperature_variance": weekly_temperature_variance
         }
 
         return outputs
