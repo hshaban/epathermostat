@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import leastsq, least_squares
 from scipy.special import erf
+from scipy import integrate
 
 from thermostat import get_version
 from thermostat.climate_zone import retrieve_climate_zone
@@ -1545,13 +1546,13 @@ class Thermostat(object):
             rhu = rhu.loc[rhu.n_points > n_points_threshold]
             temperatures = pd.Series([x.mid for x in rhu.index])
             function_fit = 0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
-            errors = ((function_fit.values - rhu.rhu.values) ** 2) 
-            return np.sqrt(np.sum(errors) / np.sum(rhu.n_points))
+            errors = ((function_fit.values - rhu.rhu.values) ** 2) * np.log(rhu.n_points)
+            return np.sqrt(np.sum(errors))
 
         initial_parameters = [30, 20]
         try:
             y = least_squares(
-                calc_estimates, initial_parameters, kwargs={"runtime_rhu": runtime_rhu}
+                calc_estimates, initial_parameters, kwargs={"runtime_rhu": runtime_rhu}, xtol=1e-3
             )
             mu_estimate = y.x[0]
             sigma_estimate = y.x[1]

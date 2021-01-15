@@ -30,11 +30,13 @@ RHU_COLUMNS = [
     "mu_estimate_daily",
     "sigma_estimate_daily",
     "sigmoid_model_error_daily",
+    "sigmoid_integral_daily",
     "dnru_hourly",
     "dnru_reduction_hourly",
     "mu_estimate_hourly",
     "sigma_estimate_hourly",
     "sigmoid_model_error_hourly",
+    "sigmoid_integral_hourly",
 ]
 
 RHU2_IQFLT_COLUMNS = [

@@ -110,12 +110,14 @@ def get_fake_output_df(n_columns):
         "mu_estimate_daily": float_column,
         "sigma_estimate_daily": float_column,
         "sigmoid_model_error_daily": float_column,
+        "sigmoid_integral_daily": float_column,
         "aux_exceeds_heat_runtime_daily": string_placeholder,
         "dnru_hourly": float_column,
         "dnru_reduction_hourly": float_column,
         "mu_estimate_hourly": float_column,
         "sigma_estimate_hourly": float_column,
         "sigmoid_model_error_hourly": float_column,
+        "sigmoid_integral_hourly": float_column,
         "aux_exceeds_heat_runtime_hourly": string_placeholder,
         "rhu1_aux_duty_cycle": float_column,
         "rhu1_emg_duty_cycle": float_column,
@@ -244,7 +246,7 @@ def combined_dataframe():
 
 def test_combine_output_dataframes(dataframes):
     combined = combine_output_dataframes(dataframes)
-    assert combined.shape == (20, 100)
+    assert combined.shape == (20, 102)
 
 
 def test_compute_summary_statistics(combined_dataframe):
@@ -254,9 +256,9 @@ def test_compute_summary_statistics(combined_dataframe):
         49,
         49,
         49,
-        2581,
+        2637,
         1153,
-        2581,
+        2637,
         1153,
     ]
 
@@ -264,24 +266,22 @@ def test_compute_summary_statistics(combined_dataframe):
         summary_statistics = compute_summary_statistics(
             combined_dataframe, advanced_filtering=True
         )
-        assert [len(s) for s in summary_statistics] == [
-            49,
-            49,
-            49,
-            49,
-            49,
-            49,
-            49,
-            49,
-            2581,
-            1153,
-            2581,
-            1153,
-            2581,
-            1153,
-            2581,
-            1153,
-        ]
+        assert [len(s) for s in summary_statistics] == [49,
+         49,
+         49,
+         49,
+         49,
+         49,
+         49,
+         49,
+         2637,
+         1153,
+         2637,
+         1153,
+         2637,
+         1153,
+         2637,
+         1153]
 
         def test_summary_statistics_to_csv(combined_dataframe):
             summary_statistics = compute_summary_statistics(combined_dataframe)
@@ -292,7 +292,7 @@ def test_compute_summary_statistics(combined_dataframe):
     assert isinstance(stats_df, pd.DataFrame)
 
     stats_df_reread = pd.read_csv(fname)
-    assert stats_df_reread.shape == (2665, 5)
+    assert stats_df_reread.shape == (2721, 5)
 
 
 def test_certification(combined_dataframe):
