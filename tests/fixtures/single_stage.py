@@ -296,6 +296,8 @@ def metrics_type_1_data():
             "heat_gain_constant": -0.24240778006476654,
             "heat_loss_constant": -0.6987162019197792,
             "hvac_constant": 0.002734068802481422,
+            'overall_temperature_variance': 3.195271934775283,
+            'weekly_temperature_variance': 1.6238953447651239
         },
         {
             "sw_version": "2.0.0nw1",
@@ -351,6 +353,8 @@ def metrics_type_1_data():
             "heat_gain_constant": -0.6723011363825689,
             "heat_loss_constant": -0.21477173349444825,
             "hvac_constant": 0.03386838474491983,
+            'overall_temperature_variance': 2.626759774833174,
+            'weekly_temperature_variance': 0.46150361745710566,
             "total_auxiliary_heating_core_day_runtime": 144794.0,
             "total_emergency_heating_core_day_runtime": 2104.0,
             "dnru_daily": 0.2211950234744482,

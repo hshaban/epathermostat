@@ -99,6 +99,8 @@ REAL_OR_INTEGER_VALUED_COLUMNS_HEATING = [
     "heat_gain_constant",
     "heat_loss_constant",
     "hvac_constant",
+    "overall_temperature_variance",
+    "weekly_temperature_variance",
 ] + RHU_COLUMNS
 
 REAL_OR_INTEGER_VALUED_COLUMNS_COOLING = [
@@ -143,6 +145,8 @@ REAL_OR_INTEGER_VALUED_COLUMNS_COOLING = [
     "heat_gain_constant",
     "heat_loss_constant",
     "hvac_constant",
+    "overall_temperature_variance",
+    "weekly_temperature_variance",
 ]
 
 REAL_OR_INTEGER_VALUED_COLUMNS_ALL = (
@@ -193,6 +197,8 @@ REAL_OR_INTEGER_VALUED_COLUMNS_ALL = (
         "heat_gain_constant",
         "heat_loss_constant",
         "hvac_constant",
+        "overall_temperature_variance",
+        "weekly_temperature_variance",
     ]
     + RHU_COLUMNS
     + RHU2_IQFLT_COLUMNS
@@ -261,6 +267,8 @@ EXPORT_COLUMNS = [
     "heat_gain_constant",
     "heat_loss_constant",
     "hvac_constant",
+    "overall_temperature_variance",
+    "weekly_temperature_variance",
     "aux_exceeds_heat_runtime_daily",
     "aux_exceeds_heat_runtime_hourly",
 ] + RHU_COLUMNS
