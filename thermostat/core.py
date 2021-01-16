@@ -1412,7 +1412,7 @@ class Thermostat(object):
         return np.maximum(alpha * (baseline_heating_demand), 0)
 
     def get_temperature_constants(self, core_day_set):
-        """Calculate the temperature constant for a specific day set.
+        """NWMOD: Calculate the temperature constant for a specific day set.
 
         Returns
         -------
@@ -1421,6 +1421,7 @@ class Thermostat(object):
         heat_loss_constant : float
             Value of heat loss constant for this core day set.
         """
+        # Error handling if heating or cooling runtime is missing 
         if not self.has_cooling:
             cool_runtime_hourly = pd.Series(
                 [0] * len(self.temperature_out.index), index=self.temperature_out.index
@@ -1433,6 +1434,7 @@ class Thermostat(object):
             )
         else:
             heat_runtime_hourly = self.heat_runtime_hourly
+        # Create a dataframe with four columns: heating/cooling runtime and indoor/outdoor temperatures
         df = pd.concat(
             [
                 cool_runtime_hourly,
@@ -1443,13 +1445,17 @@ class Thermostat(object):
             axis=1,
         )
         df.columns = ["cool_runtime", "heat_runtime", "temp_in", "temp_out"]
-
+        
+        # Calculate a new column - the temperature gradient. The difference between indoor
+        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature difference in this hour
         df["temp_gradient"] = (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"]) / (
             (df.loc[:, "temp_out"] - df.loc[:, "temp_in"]).map(
                 lambda x: 0.1 if abs(x) < 0.1 else x
             )
         )
-
+        # Heat gain constant is the mean temperature gradient with minimal heating/cooling
+        # and with the outdoor temperature larger than the indoor temperature
         heat_gain_constant = (
             df.loc[core_day_set.hourly]
             .loc[
@@ -1459,6 +1465,8 @@ class Thermostat(object):
             ]
             .temp_gradient.mean()
         )
+        # Heat loss constant is the mean temperature gradient with minimal heating/cooling
+        # and with the indoor temperature larger than the outdoor temperature
         heat_loss_constant = (
             df.loc[core_day_set.hourly]
             .loc[
@@ -1471,20 +1479,32 @@ class Thermostat(object):
         return heat_gain_constant, heat_loss_constant
 
     def get_temperature_variance(self, core_day_set):
+        """NWMOD: Calculate the temperature variance for a specific day set.
+
+        Returns
+        -------
+        overall_temperature_variance : float
+            Standard deviation of indoor temperatures for this core day set.
+        weekly_temperature_variance : float
+            Standard deviation of indoor temperatures for this core day set grouped by hour of week.
+        """
+        # Generate a dataframe with indoor temperature, hour of day, hour of week and day of week
         df = pd.DataFrame(self.temperature_in)
         if len(df.index) == 0:
             return np.nan, np.nan
         df["hour_of_day"] = df.index.hour
         df["day_of_week"] = df.index.weekday
         df["hour_of_week"] = df.day_of_week * 24 + df.hour_of_day
-
+        
+        # Filter by core day set
         df = df.loc[core_day_set.hourly]
+        # Group by hour of week and take the mean
         df_grouped = df.groupby("hour_of_week").agg({"temp_in": np.mean})
 
         return df.temp_in.std(), df_grouped.temp_in.std()
 
     def get_cooling_hvac_constant(self, core_day_set):
-        """Calculate the HVAC time constant for a specific day set.
+        """NWMOD: Calculate the HVAC time constant for a specific day set.
 
         Returns
         -------
@@ -1493,12 +1513,16 @@ class Thermostat(object):
         """
         self._protect_cooling()
 
+        # Generate a dataframe with cooling runtime, and indoor/outdoor temperatures
         df = pd.concat(
             [self.cool_runtime_hourly, self.temperature_in, self.temperature_out],
             axis=1,
         )
         df.columns = ["cool_runtime", "temp_in", "temp_out"]
-
+        
+        # Calculate a new column - the temperature gradient. The difference between indoor
+        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature difference in this hour
         df["temp_gradient"] = (
             (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"])
             / (
@@ -1510,6 +1534,8 @@ class Thermostat(object):
             * 60
         )
 
+        # Cooling HVAC constant is the mean temperature gradient with cooling runtime over 15 minutes
+        # and with the outdoor temperature larger than the indoor temperature
         cooling_hvac_constant = (
             df.loc[core_day_set.hourly]
             .loc[(df.cool_runtime >= 15) & ((df.temp_out - df.temp_in) > 1)]
@@ -1518,7 +1544,7 @@ class Thermostat(object):
         return cooling_hvac_constant
 
     def get_heating_hvac_constant(self, core_day_set):
-        """Calculate the HVAC time constant for a specific day set.
+        """NWMOD: Calculate the HVAC time constant for a specific day set.
 
         Returns
         -------
@@ -1527,12 +1553,16 @@ class Thermostat(object):
         """
         self._protect_heating()
 
+        # Generate a dataframe with cooling runtime, and indoor/outdoor temperatures
         df = pd.concat(
             [self.heat_runtime_hourly, self.temperature_in, self.temperature_out],
             axis=1,
         )
         df.columns = ["heat_runtime", "temp_in", "temp_out"]
 
+        # Calculate a new column - the temperature gradient. The difference between indoor
+        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature difference in this hour
         df["temp_gradient"] = (
             (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"])
             / (
@@ -1544,6 +1574,8 @@ class Thermostat(object):
             * 60
         )
 
+        # Heating HVAC constant is the mean temperature gradient with heating runtime over 15 minutes
+        # and with the indoor temperature larger than the outdoor temperature
         heating_hvac_constant = (
             df.loc[core_day_set.hourly]
             .loc[(df.heat_runtime >= 15) & ((df.temp_in - df.temp_out) > 1)]
@@ -1552,12 +1584,40 @@ class Thermostat(object):
         return heating_hvac_constant
 
     def fit_sigmoid_model(self, runtime_rhu, n_points_threshold=2):
+        """NWMOD: Calculate sigmoid function parameters for resistance heat utilization.
+        0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
+
+        Parameters
+        ----------
+        runtime_rhu : pandas.DataFrame
+            A dataframe containing resistance heating utilization grouped by temperature bins.
+        n_points_threshold : int
+            Data quality filter.
+            
+        Returns
+        -------
+        mu_estimate : float
+            Estimate of the mean parameter of the sigmoid function.
+        sigma_estimate : float
+            Estimate of the st. deviation parameter of the sigmoid function.
+        sigmoid_model_error : float
+            Estimate of the mean squared error of the sigmoid function fit.
+        sigmoid_integral : float
+            Integral of the sigmoid function between the smallest and 
+            largest temperature bins (0-60F by default).
+        """
+        # Function to optimize
         def calc_estimates(parameters, runtime_rhu):
             mu = parameters[0]
             sigma = parameters[1]
+            # Drop temperature bins that have little or no data
             rhu = runtime_rhu.dropna()
             rhu = rhu.loc[rhu.n_points > n_points_threshold]
+            # Get temperature value from temperature bins
             temperatures = pd.Series([x.mid for x in rhu.index])
+            # Calculate the sigmoid function and associated errors. Errors are weighted
+            # the log of the number of points to give slightly more weight to temperature bins 
+            # with more data
             function_fit = 0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
             errors = ((function_fit.values - rhu.rhu.values) ** 2) * np.log(
                 rhu.n_points
@@ -1566,6 +1626,7 @@ class Thermostat(object):
 
         initial_parameters = [30, 20]
         try:
+            # Do the least squares optimization on the sigmoid function
             y = least_squares(
                 calc_estimates,
                 initial_parameters,
@@ -1575,6 +1636,7 @@ class Thermostat(object):
             mu_estimate = y.x[0]
             sigma_estimate = y.x[1]
             sigmoid_model_error = calc_estimates(y.x, runtime_rhu)
+            # Calculate the estimated sigmiod function over all bins and integrate
             runtime_rhu["estimated_rhu"] = 0.5 * (
                 1
                 - erf(
@@ -1592,6 +1654,20 @@ class Thermostat(object):
         return mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral
 
     def get_binned_demand_daily(self, demand, bins):
+        """NWMOD: Create a binned dataframe for thermal demand.
+
+        Parameters
+        ----------
+        demand : pandas.DataFrame
+            A dataframe containing a timeseries of daily thermal demand.
+        bins : list
+            List of bin endpoints for resistance heat utilization calculations.
+            
+        Returns
+        -------
+        binned_demand : pandas.DataFrame
+            A dataframe containing a timeseries of thermal demand and temperature bin.
+        """
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
@@ -1602,6 +1678,7 @@ class Thermostat(object):
             temperature = pd.DataFrame(
                 self.temperature_out.resample("D").agg(np.mean)
             ).rename(columns={0: "temperature_out"})
+        # Merge the demand df with outdoor temperature by timestamp
         df = demand.merge(temperature, left_index=True, right_index=True)
 
         # Create the bins and group by them
@@ -1609,19 +1686,29 @@ class Thermostat(object):
         return df
 
     def get_rh_metrics_daily(self, bins, core_day_set):
+        """NWMOD: Calculate resistance heat utilization metrics using daily data.
+
+        Returns
+        -------
+        rh_metrics : dict
+            Dictionary of resistance heat metrics
+        """
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
+        # Get resistance heat runtime timeseries and bin by outdoor temperature
         runtime_temp = self.get_resistance_heat_utilization_runtime(core_day_set)
         runtime_temp["n_points"] = 1
         runtime_temp["bins"] = pd.cut(runtime_temp["temperature"], bins)
         runtime_rhu = runtime_temp.groupby("bins")[
             "heat_runtime", "aux_runtime", "emg_runtime", "n_points"
         ].sum()
+        # Calculate the resistance heat utilization in every temperature bin
         runtime_rhu["rhu"] = (
             runtime_rhu["aux_runtime"] + runtime_rhu["emg_runtime"]
         ) / (runtime_rhu["heat_runtime"] + runtime_rhu["emg_runtime"])
 
+        # Error catching for empty dataframes
         if (self.heating_demand is None) | (len(runtime_rhu.dropna().index) == 0):
             return {
                 "dnru_daily": np.nan,
@@ -1642,14 +1729,17 @@ class Thermostat(object):
                 "sigmoid_integral_daily": np.nan,
                 "aux_exceeds_heat_runtime_daily": np.nan,
             }
-
+        # Merge demand timeseries with resistance heat utilization on
+        # outdoor temperature bin
         binned_demand = self.get_binned_demand_daily(self.heating_demand, bins)
         binned_demand = binned_demand.merge(
             runtime_rhu.loc[:, "rhu"], left_on="bins", right_index=True
         )
+        # Get the weighted average resistance heat utilization
         binned_demand["rhu_norm"] = binned_demand.demand * binned_demand.rhu
         dnru_daily = binned_demand.rhu_norm.sum() / binned_demand.demand.sum()
 
+        # Get the baseline resistance heat runtime and assign temperature bins
         runtime_temp_baseline = self.runtime_heatpump_baseline.groupby(
             "day_of_year"
         ).agg(
@@ -1666,6 +1756,7 @@ class Thermostat(object):
         runtime_rhu_baseline = runtime_temp_baseline.groupby("bins")[
             "heat_runtime", "aux_runtime", "emg_runtime"
         ].sum()
+        # Calculate resistance heat utilization
         runtime_rhu_baseline["rhu_baseline"] = (
             runtime_rhu_baseline["aux_runtime"] + runtime_rhu_baseline["emg_runtime"]
         ) / (
@@ -1673,11 +1764,15 @@ class Thermostat(object):
             + runtime_rhu_baseline["emg_runtime"]
             + 0.00001
         )
+        # Merge demand timeseries with resistance heat utilization on
+        # outdoor temperature bin
         binned_demand = binned_demand.merge(
             runtime_rhu_baseline.loc[:, "rhu_baseline"],
             left_on="bins",
             right_index=True,
         )
+        # Get the demand normalized difference in resistance heat utilization and
+        # calculate the weighted average
         binned_demand["rhu_norm_reduction"] = binned_demand.demand * (
             binned_demand.rhu_baseline - binned_demand.rhu
         )
@@ -1685,6 +1780,7 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
+        # Get the sigmoid model outputs
         (
             mu_estimate,
             sigma_estimate,
@@ -1705,6 +1801,20 @@ class Thermostat(object):
         }
 
     def get_binned_demand_hourly(self, bins):
+        """NWMOD: Create a binned dataframe for thermal demand.
+
+        Parameters
+        ----------
+        demand : pandas.DataFrame
+            A dataframe containing a timeseries of hourly thermal demand.
+        bins : list
+            List of bin endpoints for resistance heat utilization calculations.
+            
+        Returns
+        -------
+        binned_demand : pandas.DataFrame
+            A dataframe containing a timeseries of thermal demand and temperature bin.
+        """
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
@@ -1715,6 +1825,7 @@ class Thermostat(object):
         temperature = pd.DataFrame(self.temperature_out).rename(
             columns={0: "temperature"}
         )
+        # Merge the demand df with outdoor temperature by timestamp
         df = demand.merge(temperature, left_index=True, right_index=True)
 
         # Create the bins and group by them
@@ -1722,9 +1833,17 @@ class Thermostat(object):
         return df
 
     def get_rh_metrics_hourly(self, bins, core_day_set):
+        """NWMOD: Calculate resistance heat utilization metrics using hourly data.
+
+        Returns
+        -------
+        rh_metrics : dict
+            Dictionary of resistance heat metrics
+        """
         self._protect_resistance_heat()
         self._protect_aux_emerg()
 
+        # Build a resistance heat runtime timeseries and bin by outdoor temperature
         runtime_temp = pd.DataFrame()
         runtime_temp["temperature"] = self.temperature_out
         runtime_temp["heat_runtime"] = self.heat_runtime_hourly
@@ -1734,6 +1853,7 @@ class Thermostat(object):
         runtime_temp["bins"] = pd.cut(runtime_temp["temperature"], bins)
         runtime_temp = runtime_temp[core_day_set.hourly]
 
+        # Calculate the resistance heat utilization in every temperature bin
         runtime_rhu = runtime_temp.groupby("bins")[
             "heat_runtime", "aux_runtime", "emg_runtime", "n_points"
         ].sum()
@@ -1741,6 +1861,7 @@ class Thermostat(object):
             runtime_rhu["aux_runtime"] + runtime_rhu["emg_runtime"]
         ) / (runtime_rhu["heat_runtime"] + runtime_rhu["emg_runtime"])
 
+        # Error catching for empty dataframes
         if len(runtime_rhu.dropna().index) == 0:
             return {
                 "dnru_hourly": np.nan,
@@ -1762,13 +1883,17 @@ class Thermostat(object):
                 "aux_exceeds_heat_runtime_hourly": np.nan,
             }
 
+        # Merge demand timeseries with resistance heat utilization on
+        # outdoor temperature bin
         binned_demand = self.get_binned_demand_hourly(bins)
         binned_demand = binned_demand.merge(
             runtime_rhu.loc[:, "rhu"], left_on="bins", right_index=True
         )
+        # Get the weighted average resistance heat utilization
         binned_demand["rhu_norm"] = binned_demand.demand * binned_demand.rhu
         dnru_hourly = binned_demand.rhu_norm.sum() / binned_demand.demand.sum()
 
+        # Get the baseline resistance heat runtime and assign temperature bins
         runtime_temp_baseline = self.runtime_heatpump_baseline
         runtime_temp_baseline["bins"] = pd.cut(
             runtime_temp_baseline["temperature"], bins
@@ -1776,6 +1901,7 @@ class Thermostat(object):
         runtime_rhu_baseline = runtime_temp_baseline.groupby("bins")[
             "heat_runtime", "aux_runtime", "emg_runtime"
         ].sum()
+        # Calculate resistance heat utilization
         runtime_rhu_baseline["rhu_baseline"] = (
             runtime_rhu_baseline["aux_runtime"] + runtime_rhu_baseline["emg_runtime"]
         ) / (
@@ -1783,11 +1909,15 @@ class Thermostat(object):
             + runtime_rhu_baseline["emg_runtime"]
             + 0.00001
         )
+        # Merge demand timeseries with resistance heat utilization on
+        # outdoor temperature bin
         binned_demand = binned_demand.merge(
             runtime_rhu_baseline.loc[:, "rhu_baseline"],
             left_on="bins",
             right_index=True,
         )
+        # Get the demand normalized difference in resistance heat utilization and
+        # calculate the weighted average
         binned_demand["rhu_norm_reduction"] = binned_demand.demand * (
             binned_demand.rhu_baseline - binned_demand.rhu
         )
@@ -1795,6 +1925,7 @@ class Thermostat(object):
             binned_demand.rhu_norm_reduction.sum() / binned_demand.demand.sum()
         )
 
+        # Get the sigmoid model outputs
         (
             mu_estimate,
             sigma_estimate,
@@ -1817,12 +1948,22 @@ class Thermostat(object):
     def get_baseline_hourly_cooling_demand(
         self, core_cooling_day_set, temp_baseline, tau
     ):
+        """NWMOD: Calculate baseline cooling demand using a regional baseline.
+
+        Returns
+        -------
+        baseline_hourly_demand : pd.Series
+            Timeseries of daily demand using a regional baseline
+        """
         self._protect_cooling()
 
+        # Get the outdoor temperature for this core day set
         hourly_temp_out = self.temperature_out[core_cooling_day_set.hourly]
         if len(hourly_temp_out) == 0:
             return pd.Series()
 
+        # Build a dataframe of outdoor temperature and merge it with the 
+        # baseline temperature timeseries
         df = pd.DataFrame()
         df["temperature_out"] = hourly_temp_out
         df.index = hourly_temp_out.index
@@ -1833,9 +1974,12 @@ class Thermostat(object):
 
         df = df.merge(temp_baseline, on="hour_of_year")
 
+        # Calculate demand using the difference between actual indoor temperature
+        # and the baseline temperature adjusted by tau
         hourly_cdd = (tau - (df.temperature_in - df.temperature_out)).apply(
             lambda x: np.maximum(x, 0)
         )
+        # Aggregate to daily level
         demand = np.array(
             [
                 cdd.sum() / 24
@@ -1849,12 +1993,22 @@ class Thermostat(object):
     def get_baseline_hourly_heating_demand(
         self, core_heating_day_set, temp_baseline, tau
     ):
+        """NWMOD: Calculate baseline heating demand using a regional baseline.
+
+        Returns
+        -------
+        baseline_hourly_demand : pd.Series
+            Timeseries of daily demand using a regional baseline
+        """
         self._protect_heating()
 
+        # Get the outdoor temperature for this core day set
         hourly_temp_out = self.temperature_out[core_heating_day_set.hourly]
         if len(hourly_temp_out) == 0:
             return pd.Series()
 
+        # Build a dataframe of outdoor temperature and merge it with the 
+        # baseline temperature timeseries
         df = pd.DataFrame()
         df["temperature_out"] = hourly_temp_out
         df.index = hourly_temp_out.index
@@ -1864,9 +2018,13 @@ class Thermostat(object):
         )
 
         df = df.merge(temp_baseline, on="hour_of_year")
+
+        # Calculate demand using the difference between actual indoor temperature
+        # and the baseline temperature adjusted by tau
         hourly_hdd = (df.temperature_in - df.temperature_out - tau).apply(
             lambda x: np.maximum(x, 0)
         )
+        # Aggregate to daily level
         demand = np.array(
             [
                 hdd.sum() / 24
