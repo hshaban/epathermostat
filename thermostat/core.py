@@ -1421,7 +1421,7 @@ class Thermostat(object):
         heat_loss_constant : float
             Value of heat loss constant for this core day set.
         """
-        # Error handling if heating or cooling runtime is missing 
+        # Error handling if heating or cooling runtime is missing
         if not self.has_cooling:
             cool_runtime_hourly = pd.Series(
                 [0] * len(self.temperature_out.index), index=self.temperature_out.index
@@ -1445,9 +1445,9 @@ class Thermostat(object):
             axis=1,
         )
         df.columns = ["cool_runtime", "heat_runtime", "temp_in", "temp_out"]
-        
+
         # Calculate a new column - the temperature gradient. The difference between indoor
-        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature in this hour minus the previous hour divided by the indoor-outdoor
         # temperature difference in this hour
         df["temp_gradient"] = (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"]) / (
             (df.loc[:, "temp_out"] - df.loc[:, "temp_in"]).map(
@@ -1495,7 +1495,7 @@ class Thermostat(object):
         df["hour_of_day"] = df.index.hour
         df["day_of_week"] = df.index.weekday
         df["hour_of_week"] = df.day_of_week * 24 + df.hour_of_day
-        
+
         # Filter by core day set
         df = df.loc[core_day_set.hourly]
         # Group by hour of week and take the mean
@@ -1519,9 +1519,9 @@ class Thermostat(object):
             axis=1,
         )
         df.columns = ["cool_runtime", "temp_in", "temp_out"]
-        
+
         # Calculate a new column - the temperature gradient. The difference between indoor
-        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature in this hour minus the prvious hour divided by the indoor-outdoor
         # temperature difference in this hour
         df["temp_gradient"] = (
             (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"])
@@ -1561,7 +1561,7 @@ class Thermostat(object):
         df.columns = ["heat_runtime", "temp_in", "temp_out"]
 
         # Calculate a new column - the temperature gradient. The difference between indoor
-        # temperature in this hour minus the prvious hour divided by the indoor-outdoor 
+        # temperature in this hour minus the prvious hour divided by the indoor-outdoor
         # temperature difference in this hour
         df["temp_gradient"] = (
             (df.loc[:, "temp_in"] - df.shift(1).loc[:, "temp_in"])
@@ -1593,7 +1593,7 @@ class Thermostat(object):
             A dataframe containing resistance heating utilization grouped by temperature bins.
         n_points_threshold : int
             Data quality filter.
-            
+
         Returns
         -------
         mu_estimate : float
@@ -1603,7 +1603,7 @@ class Thermostat(object):
         sigmoid_model_error : float
             Estimate of the mean squared error of the sigmoid function fit.
         sigmoid_integral : float
-            Integral of the sigmoid function between the smallest and 
+            Integral of the sigmoid function between the smallest and
             largest temperature bins (0-60F by default).
         """
         # Function to optimize
@@ -1615,23 +1615,16 @@ class Thermostat(object):
             rhu = rhu.loc[rhu.n_points > n_points_threshold]
             # Get temperature value from temperature bins
             temperatures = pd.Series([x.mid for x in rhu.index])
-            # Calculate the sigmoid function and associated errors. Errors are weighted
-            # the log of the number of points to give slightly more weight to temperature bins 
-            # with more data
+            # Calculate the sigmoid function and associated errors.
             function_fit = 0.5 * (1 - erf((temperatures - mu) / (sigma * np.sqrt(2))))
-            errors = ((function_fit.values - rhu.rhu.values) ** 2) * np.log(
-                rhu.n_points
-            )
-            return np.sqrt(np.sum(errors))
+            errors = (function_fit.values - rhu.rhu.values) ** 2
+            return np.sqrt(np.sum(errors) / np.sum(rhu.n_points))
 
-        initial_parameters = [30, 20]
+        initial_parameters = [30, 5]
         try:
             # Do the least squares optimization on the sigmoid function
             y = least_squares(
-                calc_estimates,
-                initial_parameters,
-                kwargs={"runtime_rhu": runtime_rhu},
-                xtol=1e-3,
+                calc_estimates, initial_parameters, kwargs={"runtime_rhu": runtime_rhu}
             )
             mu_estimate = y.x[0]
             sigma_estimate = y.x[1]
@@ -1662,7 +1655,7 @@ class Thermostat(object):
             A dataframe containing a timeseries of daily thermal demand.
         bins : list
             List of bin endpoints for resistance heat utilization calculations.
-            
+
         Returns
         -------
         binned_demand : pandas.DataFrame
@@ -1809,7 +1802,7 @@ class Thermostat(object):
             A dataframe containing a timeseries of hourly thermal demand.
         bins : list
             List of bin endpoints for resistance heat utilization calculations.
-            
+
         Returns
         -------
         binned_demand : pandas.DataFrame
@@ -1962,7 +1955,7 @@ class Thermostat(object):
         if len(hourly_temp_out) == 0:
             return pd.Series()
 
-        # Build a dataframe of outdoor temperature and merge it with the 
+        # Build a dataframe of outdoor temperature and merge it with the
         # baseline temperature timeseries
         df = pd.DataFrame()
         df["temperature_out"] = hourly_temp_out
@@ -2007,7 +2000,7 @@ class Thermostat(object):
         if len(hourly_temp_out) == 0:
             return pd.Series()
 
-        # Build a dataframe of outdoor temperature and merge it with the 
+        # Build a dataframe of outdoor temperature and merge it with the
         # baseline temperature timeseries
         df = pd.DataFrame()
         df["temperature_out"] = hourly_temp_out
