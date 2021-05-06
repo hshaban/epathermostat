@@ -12,11 +12,13 @@ make it easier to debug.
 
 .. code-block:: bash
 
-    # if using virtualenvwrapper (see https://virtualenvwrapper.readthedocs.org/en/latest/install.html)
+    # if using virtualenvwrapper
+    # (https://virtualenvwrapper.readthedocs.org/en/latest/install.html)
     $ mkvirtualenv thermostat
     (thermostat)$ pip install thermostat
 
-    # if using Python 3 with venv (see https://docs.python.org/3/library/venv.html)
+    # if using Python 3 with venv
+    # (https://docs.python.org/3/library/venv.html)
     # (cd to directory with data files)
     $ python3 -m venv venv
     $ source venv/bin/activate
@@ -26,10 +28,6 @@ make it easier to debug.
     $ conda create --yes --name thermostat pandas
     $ source activate thermostat
     (thermostat)$ pip install thermostat
-
-    # If using pipenv (see https://github.com/pypa/pipenv)
-    # (cd to directory with data files)
-    $ pipenv --python 3.7 install thermostat
 
 If you already have an environment, use the following:
 
@@ -43,11 +41,14 @@ If you already have an environment, use the following:
     $ source activate thermostat
     (thermostat)$
 
+    # if using venv, or virtualenv directly
+    $ source path/to/venv/bin/activate
+
 To deactivate the environment when you've finished, use the following:
 
 .. code-block:: bash
 
-    # if using virtualenvwrapper / venv / pipenv
+    # if using virtualenvwrapper / venv
     (thermostat)$ deactivate
     $
 
@@ -59,9 +60,11 @@ Check to make sure you are on the most recent version of the package.
 
 .. code-block:: python
 
+    # After activating your virtual environment (above)
+    # (thermostat)$ python
     >>> import thermostat; thermostat.get_version()
 
-    '1.7.2'
+    '2.0.0'
 
 If you are not on the correct version, you should upgrade:
 
@@ -69,14 +72,19 @@ If you are not on the correct version, you should upgrade:
 
     $ pip install thermostat --upgrade
 
-The command above will update dependencies as well. If you wish to skip this,
-use the :code:`--no-deps` flag:
+The command above will update dependencies as well. If you wish to skip
+updating dependencies, use the :code:`--no-deps` flag:
+
+.. note::
+
+   This is not recommended between major and minor revisions. e.g.: if you are
+   upgrading from version 1.7.2 to 2.0.0 we recommend updating dependencies.
 
 .. code-block:: bash
 
     $ pip install thermostat --upgrade --no-deps
 
-Previous versions of the package are available on `github <https://github.com/EPAENERGYSTAR/epathermostat/releases>`_.
+Previous versions of the package are available on `github`_. 
 
 .. note::
 
@@ -84,8 +92,8 @@ Previous versions of the package are available on `github <https://github.com/EP
     as `numpy` or `scipy`, we recommend installing and using the free
     `Anaconda <https://www.continuum.io/downloads>`_ Python distribution by
     Continuum Analytics. It contains many of the numeric and scientific
-    packages used by this package and has installers for Python 2.7 and 3.5 for
-    Windows, Mac OS X and Linux.
+    packages used by this package and has installers for Windows, macOS, and
+    Linux.
 
 Once you have verified a correct installation, import the necessary methods
 and set a directory for finding and storing data.
@@ -151,15 +159,16 @@ override it entirely by replacing it where it appears in the tutorial.
     data_dir = os.path.join(expanduser("~"), "thermostat_tutorial")
     # or data_dir = "/full/path/to/custom/directory/"
 
-Optional Setup
---------------
+Logging
+-------
 
 If you wish to follow the progress of downloading and caching external weather
 files, which will be the most time-consuming portion of this tutorial, you may
-wish at this point to configure logging. The example here will work within most
+wish to configure logging. The example here will work within most
 iPython / Jupyter Notebook or script environments. If you have a more
-complicated logging setup, you may need to use something other than the root
-logger, which this uses.
+complicated logging setup, you may need to use something other than the default
+root logger. For more information visit `Python's logging documentation
+<https://docs.python.org/3/library/logging.html#module-logging>`_.
 
 .. code-block:: python
 
@@ -167,27 +176,18 @@ logger, which this uses.
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
-.. note::
+    # another example is in the script directory
 
-    The thermostat package depends on the eemeter and eeweather packages for weather data
-    fetching. The eeweather package automatically creates its own cache directory
-    in which it keeps cached versions of weather source data. This speeds up
-    the (generally I/O bound) NOAA weather fetching routine on subsequent
-    internal calls to fetch the same weather data (i.e. getting outdoor
-    temperature data for thermostats that map to the same weather station).
+    logging.basicConfig()
+    # Example logging configuration for file and console output
+    # logging.json: Normal logging example
+    # logging_noisy.json: Turns on all debugging information
+    # logging_quiet.json: Only logs error messages
+    with open("logging.json", "r") as logging_config:
+        logging.config.dictConfig(json.load(logging_config))
 
-    For more information, see the `eeweather package <http://eeweather.openee.io/en/latest/index.html>`_.
+    logger = logging.getLogger('epathermostat')  # Uses the 'epathermostat' logging
 
-.. note::
-
-    US Census Bureau ZIP Code Tabulation Areas (ZCTA) are used to map USPS ZIP
-    codes to outdoor temperature data. If the automatic mapping is unsuccessful
-    for one or more of the ZIP codes in your dataset, the reason is likely to
-    be the discrepancy between "true" USPS ZIP codes and the US Census Bureau
-    ZCTAs. "True" ZIP codes are not used because they do not always map well to
-    location (for example, ZIP codes for P.O. boxes). You may need to first map
-    ZIP codes to ZCTAs, or these thermostats will be skipped. There are roughly
-    32,000 ZCTAs and roughly 42000 ZIP codes - many fewer ZCTAs than ZIP codes.
 
 Computing individual thermostat-season metrics
 ----------------------------------------------
@@ -204,18 +204,44 @@ the weather cache is enabled (see note above). This is because loading
 thermostat data involves downloading hourly weather data from a remote
 source - in this case, the NCDC.
 
-The following loads an lazy iterator over the thermostats. The thermostats
-will be loaded into memory as necessary in the following steps.
+
+The following creates a lazy iterator over the thermostats. This will set up up
+to three connections to the NCDC at a time to download thermostat data. This
+is the maximum number of FTP connections the NCDC will allow from one
+IP address. The thermostats will be loaded into memory via the following steps:
 
 .. code-block:: python
 
     metadata_filename = os.path.join(data_dir, "examples/metadata.csv")
     thermostats = from_csv(metadata_filename, verbose=True)
 
+.. note::
+
+    The thermostat package depends on eeweather packages for weather data
+    fetching. The eeweather package automatically creates its own cache
+    directory in which it keeps cached versions of weather source data. This
+    speeds up the (generally I/O bound) NOAA weather fetching routine on
+    subsequent internal calls to fetch the same weather data (i.e. getting
+    outdoor temperature data for thermostats that map to the same weather
+    station).
+
+    For more information, visit the `eeweather package <http://eeweather.openee.io/en/latest/index.html>`_.
+
+.. note::
+
+    US Census Bureau ZIP Code Tabulation Areas (ZCTA) are used to map USPS ZIP
+    codes to outdoor temperature data. If the automatic mapping is unsuccessful
+    for one or more of the ZIP codes in your dataset, the reason is likely to
+    be the discrepancy between "true" USPS ZIP codes and the US Census Bureau
+    ZCTAs. "True" ZIP codes are not used because they do not always map well to
+    location (for example, ZIP codes for P.O. boxes). You may need to first map
+    ZIP codes to ZCTAs, or these thermostats will be skipped. There are roughly
+    32,000 ZCTAs and roughly 42000 ZIP codes - many fewer ZCTAs than ZIP codes.
+
 To calculate savings metrics, iterate through thermostats and save the results.
 Uncomment the commented lines if you would like to store the thermostats in
-memory for inspection. Note that this could eat up your application memory and
-is only recommended for debugging purposes.
+memory for inspection. Note that this could use a significant amount of  your
+application memory and is only recommended for debugging purposes.
 
 .. code-block:: python
 
@@ -227,11 +253,13 @@ is only recommended for debugging purposes.
         # saved_thermostats.append(thermostat)
 
 
-If you are looking to use multiple thermostats for the calculation you may
+If you are looking to use multiple CPUs (processors) for the calculation you may
 replace the above code with the following method call:
 
 .. code-block:: python
 
+    from thermostat.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+    # ...
     metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
 
 This will use all of the available CPUs on the machine in order to calculate
@@ -241,7 +269,9 @@ the savings metrics.
 
     You will need to have imported the
     ``multiple_thermostat_calculate_epa_field_savings_metrics`` method from
-    ``thermostat.multiple`` prior to using this method.
+    ``thermostat.multiple`` prior to using this method. The "Sample
+    Program" section below has a complete example, as well as the `scripts`
+    directory on `github`_.
 
     If you're running under Windows please see the "Notes for Windows Users" below.
 
@@ -253,8 +283,8 @@ The single-thermostat metrics should be output to CSV and converted to dataframe
     output_filename = os.path.join(data_dir, "thermostat_example_output.csv")
     metrics_df = metrics_to_csv(metrics, output_filename)
 
-The output CSV will be saved in your data directory and should very nearly
-match the output CSV provided in the example data.
+The output CSV will be saved in your data directory and should closely match
+the output CSV provided in the example data.
 
 See :ref:`thermostat-output` for more detailed file format information.
 
@@ -279,15 +309,14 @@ Compute statistics across all thermostats.
         stats = compute_summary_statistics(metrics_df)
 
         # If you want to have advanced filter outputs, use this instead
-        # stats_advanced = compute_summary_statistics(metrics_df, advanced_filtering=True)
+        # stats_advanced = compute_summary_statistics(metrics_df,
+        #                                             advanced_filtering=True)
 
 Save these results to file.
 
-Each row of the saved CSV will represent one type of output, with one row per
-statistic per output. Each column in the CSV will represent one subset of
-thermostats, as determined by grouping by EIC climate zone and applying
-various filtering methods. National weighted averages will be available near
-the top of the file.
+Each row of the stats CSV file will represent one output statistic. Each column in the
+CSV file will represent one subset of thermostats, grouped by EIC climate zone and
+filtering method.
 
 At this point, you will also need to provide an alphanumeric product identifier
 for the connected thermostat; e.g. a combination of the connected thermostat
@@ -298,21 +327,38 @@ data set.
 
     product_id = "INSERT ALPHANUMERIC PRODUCT ID HERE"
     stats_filepath = os.path.join(data_dir, "thermostat_example_stats.csv")
-    stats_df = summary_statistics_to_csv(stats, stats_filepath, product_id)
+    summary_statistics_to_csv(stats, stats_filepath, product_id)
 
     # or with advanced filter outputs
-    # stats_advanced_filepath = os.path.join(data_dir, "thermostat_example_stats_advanced.csv")
-    # stats_advanced_df = summary_statistics_to_csv(stats_advanced, stats_advanced_filepath, product_id)
+    # stats_advanced_filepath = os.path.join(data_dir,
+    #                                        "thermostat_example_stats_advanced.csv")
+    # stats_advanced_df = summary_statistics_to_csv(stats_advanced,
+    #                                               stats_advanced_filepath,
+    #                                               product_id)
 
-National savings are computed by weighted average of percent savings results
-grouped by climate zone. Heavier weights are applied to results in climate
-zones which, regionally, tend to have longer runtimes. Weightings used are
-available :download:`for download <../thermostat/resources/NationalAverageClimateZoneWeightings.csv>`.
+
+Certification File
+------------------
+
+Once you have computed the summary statistics you may then create the certification file,
+which is also submitted to the EPA. National savings metrics are computed by weighted average of
+percent savings results grouped by climate zone. Heavier weights are applied to results
+in climate zones which have longer runtimes due to more extreme climate. Weightings used
+are available :download:`for download <../thermostat/resources/NationalAverageClimateZoneWeightings.csv>`
+
+.. code-block:: python
+
+    certification_filepath = os.path.join(data_dir,
+                                          "thermostat_example_certification.csv")
+    # stats is the results from compute_summary_statistics above
+    certification_to_csv(stats, certification_filepath, product_id)
 
 Notes for Windows Users
 -----------------------
 
-Python under Windows requires that all multiprocessing code needs to be run under a sub module. If you are under Windows you will need to wrap your code using the following:
+Python under Windows requires that all multiprocessing code needs to be run
+under a sub module. If you are under Windows you will need to wrap your code
+using the following:
 
 .. code-block:: python
     
@@ -322,12 +368,25 @@ Python under Windows requires that all multiprocessing code needs to be run unde
     if __name__ == "__main__":
         main()
 
-Not having this wrapper will cause a Runtime Error "Attempt to start a new process before the current process has finished its bootstrapping phase.".
+Not having this wrapper will cause a Runtime Error "Attempt to start a new
+process before the current process has finished its bootstrapping phase.".
 
 Other platforms should not be affected by this.
+
+Sample Program
+--------------
+
+Here is a complete version of the above tutorial code:
+
+.. literalinclude:: ../scripts/multi_thermostat_tutorial.py
+   :language: python
 
 More information
 ----------------
 
 For additional information on package usage, please see the
-:ref:`thermostat-api` documentation. For additional information in the input and output data files please see the :ref:`thermostat-input` and :ref:`thermostat-output` documentation.
+:ref:`thermostat-api` documentation. For additional information in the input
+and output data files please see the :ref:`thermostat-input` and
+:ref:`thermostat-output` documentation.
+
+.. _github: https://github.com/EPAENERGYSTAR/epathermostat/releases

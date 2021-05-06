@@ -1,7 +1,9 @@
+This a fork of the EPA thermostat metric repository. It is a custom version developed for a study of thermostat performance in Northwestern USA sponsored by NEEA.
+
 Connected Thermostat draft field savings metrics module
 =======================================================
 
-[![Build Status](https://travis-ci.org/openeemeter/thermostat.svg?branch=develop)](https://travis-ci.org/openeemeter/thermostat)
+[![Build Status](https://api.travis-ci.org/EPAENERGYSTAR/epathermostat.svg?branch=feature%2Fepathermostat_2.0)](https://travis-ci.org/github/EPAENERGYSTAR/epathermostat)
 
 Calculate temperature/run-time savings for connected thermostats using this
 package.

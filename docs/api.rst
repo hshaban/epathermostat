@@ -29,14 +29,6 @@ thermostat.core
     :members:
     :show-inheritance:
 
-thermostat.regression
----------------------
-
-.. automodule:: thermostat.regression
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 thermostat.stats
 ----------------
 
@@ -73,6 +65,14 @@ thermostat.eeweather_wrapper
 ----------------------------
 
 .. automodule:: thermostat.eeweather_wrapper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+thermostat.equipment_type
+-------------------------
+
+.. automodule:: thermostat.equipment_type
     :members:
     :undoc-members:
     :show-inheritance:
