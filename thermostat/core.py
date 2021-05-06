@@ -217,6 +217,18 @@ class Thermostat(object):
             self.heat_runtime_daily = None
         self.auxiliary_heat_runtime = auxiliary_heat_runtime
         self.emergency_heat_runtime = emergency_heat_runtime
+        if hasattr(auxiliary_heat_runtime, "empty") and auxiliary_heat_runtime.empty is False:
+            self.auxiliary_runtime_daily = auxiliary_heat_runtime.resample("D").agg(
+                pd.Series.sum, skipna=False
+            )
+        else:
+            self.auxiliary_runtime_daily = None
+        if hasattr(emergency_heat_runtime, "empty") and emergency_heat_runtime.empty is False:
+            self.emergency_runtime_daily = emergency_heat_runtime.resample("D").agg(
+                pd.Series.sum, skipna=False
+            )
+        else:
+            self.emergency_runtime_daily = None
 
         self.heating_demand = None
         self.tau = None
@@ -2158,6 +2170,12 @@ class Thermostat(object):
             warnings.warn("WARNING: Number of valid cooling hours is zero.")
 
         average_daily_cooling_runtime = np.divide(total_runtime_core_cooling, n_days)
+        
+        avg_daily_cooling_runtime = self.cool_runtime_daily[core_cooling_day_set.daily].mean()
+        avg_daily_heating_runtime = self.heat_runtime_daily[core_cooling_day_set.daily].mean()
+        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[core_cooling_day_set.daily].mean()
+        avg_daily_emergency_runtime = self.emergency_runtime_daily[core_cooling_day_set.daily].mean()
+        
 
         baseline10_demand = self.get_baseline_cooling_demand(
             core_cooling_day_set,
@@ -2363,6 +2381,10 @@ class Thermostat(object):
             "hvac_constant": hvac_constant,
             "overall_temperature_variance": overall_temperature_variance,
             "weekly_temperature_variance": weekly_temperature_variance,
+            "avg_daily_cooling_runtime": avg_daily_cooling_runtime,
+            "avg_daily_heating_runtime": avg_daily_heating_runtime,
+            "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
+            "avg_daily_emergency_runtime": avg_daily_emergency_runtime
         }
         return outputs
 
@@ -2413,6 +2435,11 @@ class Thermostat(object):
             warnings.warn("WARNING: Number of valid cooling hours is zero.")
 
         average_daily_heating_runtime = np.divide(total_runtime_core_heating, n_days)
+        
+        avg_daily_cooling_runtime = self.cool_runtime_daily[core_heating_day_set.daily].mean()
+        avg_daily_heating_runtime = self.heat_runtime_daily[core_heating_day_set.daily].mean()
+        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[core_heating_day_set.daily].mean()
+        avg_daily_emergency_runtime = self.emergency_runtime_daily[core_heating_day_set.daily].mean()
 
         baseline90_demand = self.get_baseline_heating_demand(
             core_heating_day_set,
@@ -2625,6 +2652,10 @@ class Thermostat(object):
             "hvac_constant": hvac_constant,
             "overall_temperature_variance": overall_temperature_variance,
             "weekly_temperature_variance": weekly_temperature_variance,
+            "avg_daily_cooling_runtime": avg_daily_cooling_runtime,
+            "avg_daily_heating_runtime": avg_daily_heating_runtime,
+            "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
+            "avg_daily_emergency_runtime": avg_daily_emergency_runtime
         }
 
         return outputs
