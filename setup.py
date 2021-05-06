@@ -6,7 +6,7 @@ long_description = "Calculate connected thermostat temperature/run-time savings.
 
 
 setup(
-    name="thermostat",
+    name="thermostat_nw",
     version=version,
     description="Calculate connected thermostat savings",
     long_description=long_description,
