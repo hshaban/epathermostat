@@ -217,13 +217,19 @@ class Thermostat(object):
             self.heat_runtime_daily = None
         self.auxiliary_heat_runtime = auxiliary_heat_runtime
         self.emergency_heat_runtime = emergency_heat_runtime
-        if hasattr(auxiliary_heat_runtime, "empty") and auxiliary_heat_runtime.empty is False:
+        if (
+            hasattr(auxiliary_heat_runtime, "empty")
+            and auxiliary_heat_runtime.empty is False
+        ):
             self.auxiliary_runtime_daily = auxiliary_heat_runtime.resample("D").agg(
                 pd.Series.sum, skipna=False
             )
         else:
             self.auxiliary_runtime_daily = None
-        if hasattr(emergency_heat_runtime, "empty") and emergency_heat_runtime.empty is False:
+        if (
+            hasattr(emergency_heat_runtime, "empty")
+            and emergency_heat_runtime.empty is False
+        ):
             self.emergency_runtime_daily = emergency_heat_runtime.resample("D").agg(
                 pd.Series.sum, skipna=False
             )
@@ -1017,7 +1023,7 @@ class Thermostat(object):
 
         tau_starting_guess = 0
         try:
-            y, _ = leastsq(estimate_errors, tau_starting_guess)
+            y = leastsq(estimate_errors, tau_starting_guess, full_output=1)
         except TypeError:  # len 0
             assert (
                 daily_runtime.shape[0] == 0
@@ -1033,12 +1039,16 @@ class Thermostat(object):
                 np.nan,
             )
 
-        tau_estimate = y[0]
+        tau_estimate = y[0][0]
 
         cdd, alpha_estimate, errors = calc_estimates(tau_estimate)
         mse = np.nanmean((errors) ** 2)
         rmse = mse ** 0.5
         mean_daily_runtime = np.nanmean(daily_runtime)
+
+        cov_x = y[1]
+        nfev = y[2]["nfev"]
+        mesg = y[3]
         try:
             cvrmse = rmse / mean_daily_runtime
         except ZeroDivisionError:
@@ -1060,6 +1070,9 @@ class Thermostat(object):
             cvrmse,
             mape,
             mae,
+            cov_x,
+            nfev,
+            mesg,
         )
 
     def get_heating_demand(self, core_heating_day_set):
@@ -1165,7 +1178,7 @@ class Thermostat(object):
         tau_starting_guess = 0
 
         try:
-            y, _ = leastsq(estimate_errors, tau_starting_guess)
+            y = leastsq(estimate_errors, tau_starting_guess, full_output=1)
         except TypeError:  # len 0
             assert (
                 daily_runtime.shape[0] == 0
@@ -1181,12 +1194,16 @@ class Thermostat(object):
                 np.nan,
             )
 
-        tau_estimate = y[0]
+        tau_estimate = y[0][0]
 
         hdd, alpha_estimate, errors = calc_estimates(tau_estimate)
         mse = np.nanmean((errors) ** 2)
         rmse = mse ** 0.5
         mean_daily_runtime = np.nanmean(daily_runtime)
+
+        cov_x = y[1]
+        nfev = y[2]["nfev"]
+        mesg = y[3]
         try:
             cvrmse = rmse / mean_daily_runtime
         except ZeroDivisionError:
@@ -1208,6 +1225,9 @@ class Thermostat(object):
             cvrmse,
             mape,
             mae,
+            cov_x,
+            nfev,
+            mesg,
         )
 
     def get_core_cooling_day_baseline_setpoint(
@@ -2150,6 +2170,9 @@ class Thermostat(object):
             cvrmse,
             mape,
             mae,
+            cov_x,
+            nfev,
+            mesg,
         ) = self.get_cooling_demand(core_cooling_day_set)
 
         total_runtime_core_cooling = daily_runtime.sum()
@@ -2170,12 +2193,19 @@ class Thermostat(object):
             warnings.warn("WARNING: Number of valid cooling hours is zero.")
 
         average_daily_cooling_runtime = np.divide(total_runtime_core_cooling, n_days)
-        
-        avg_daily_cooling_runtime = self.cool_runtime_daily[core_cooling_day_set.daily].mean()
-        avg_daily_heating_runtime = self.heat_runtime_daily[core_cooling_day_set.daily].mean()
-        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[core_cooling_day_set.daily].mean()
-        avg_daily_emergency_runtime = self.emergency_runtime_daily[core_cooling_day_set.daily].mean()
-        
+
+        avg_daily_cooling_runtime = self.cool_runtime_daily[
+            core_cooling_day_set.daily
+        ].mean()
+        avg_daily_heating_runtime = self.heat_runtime_daily[
+            core_cooling_day_set.daily
+        ].mean()
+        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[
+            core_cooling_day_set.daily
+        ].mean()
+        avg_daily_emergency_runtime = self.emergency_runtime_daily[
+            core_cooling_day_set.daily
+        ].mean()
 
         baseline10_demand = self.get_baseline_cooling_demand(
             core_cooling_day_set,
@@ -2370,6 +2400,9 @@ class Thermostat(object):
             "cv_root_mean_sq_err": cvrmse,
             "mean_abs_pct_err": mape,
             "mean_abs_err": mae,
+            "cov_x": cov_x,
+            "nfev": nfev,
+            "mesg": mesg,
             "total_core_cooling_runtime": total_runtime_core_cooling,
             "daily_mean_core_cooling_runtime": average_daily_cooling_runtime,
             "core_cooling_days_mean_indoor_temperature": core_cooling_days_mean_indoor_temperature,
@@ -2384,7 +2417,7 @@ class Thermostat(object):
             "avg_daily_cooling_runtime": avg_daily_cooling_runtime,
             "avg_daily_heating_runtime": avg_daily_heating_runtime,
             "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
-            "avg_daily_emergency_runtime": avg_daily_emergency_runtime
+            "avg_daily_emergency_runtime": avg_daily_emergency_runtime,
         }
         return outputs
 
@@ -2412,6 +2445,9 @@ class Thermostat(object):
             cvrmse,
             mape,
             mae,
+            cov_x,
+            nfev,
+            mesg,
         ) = self.get_heating_demand(core_heating_day_set)
 
         self.heating_demand = demand.copy()
@@ -2435,11 +2471,19 @@ class Thermostat(object):
             warnings.warn("WARNING: Number of valid cooling hours is zero.")
 
         average_daily_heating_runtime = np.divide(total_runtime_core_heating, n_days)
-        
-        avg_daily_cooling_runtime = self.cool_runtime_daily[core_heating_day_set.daily].mean()
-        avg_daily_heating_runtime = self.heat_runtime_daily[core_heating_day_set.daily].mean()
-        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[core_heating_day_set.daily].mean()
-        avg_daily_emergency_runtime = self.emergency_runtime_daily[core_heating_day_set.daily].mean()
+
+        avg_daily_cooling_runtime = self.cool_runtime_daily[
+            core_heating_day_set.daily
+        ].mean()
+        avg_daily_heating_runtime = self.heat_runtime_daily[
+            core_heating_day_set.daily
+        ].mean()
+        avg_daily_auxiliary_runtime = self.auxiliary_runtime_daily[
+            core_heating_day_set.daily
+        ].mean()
+        avg_daily_emergency_runtime = self.emergency_runtime_daily[
+            core_heating_day_set.daily
+        ].mean()
 
         baseline90_demand = self.get_baseline_heating_demand(
             core_heating_day_set,
@@ -2641,6 +2685,9 @@ class Thermostat(object):
             "cv_root_mean_sq_err": cvrmse,
             "mean_abs_pct_err": mape,
             "mean_abs_err": mae,
+            "cov_x": cov_x,
+            "nfev": nfev,
+            "mesg": mesg,
             "total_core_heating_runtime": total_runtime_core_heating,
             "daily_mean_core_heating_runtime": average_daily_heating_runtime,
             "core_heating_days_mean_indoor_temperature": core_heating_days_mean_indoor_temperature,
@@ -2655,7 +2702,7 @@ class Thermostat(object):
             "avg_daily_cooling_runtime": avg_daily_cooling_runtime,
             "avg_daily_heating_runtime": avg_daily_heating_runtime,
             "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
-            "avg_daily_emergency_runtime": avg_daily_emergency_runtime
+            "avg_daily_emergency_runtime": avg_daily_emergency_runtime,
         }
 
         return outputs
