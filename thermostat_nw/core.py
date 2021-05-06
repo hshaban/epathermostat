@@ -10,9 +10,9 @@ from scipy.optimize import leastsq, least_squares
 from scipy.special import erf
 from scipy import integrate
 
-from thermostat import get_version
-from thermostat.climate_zone import retrieve_climate_zone
-from thermostat.equipment_type import (
+from thermostat_nw import get_version
+from thermostat_nw.climate_zone import retrieve_climate_zone
+from thermostat_nw.equipment_type import (
     has_heating,
     has_cooling,
     has_auxiliary,

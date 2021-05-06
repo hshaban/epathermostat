@@ -1,5 +1,5 @@
 import pytest
-from thermostat.equipment_type import (
+from thermostat_nw.equipment_type import (
     has_heating,
     has_cooling,
     has_auxiliary,

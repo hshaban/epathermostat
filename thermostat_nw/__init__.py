@@ -1,9 +1,4 @@
-<<<<<<< HEAD:thermostat/__init__.py
-VERSION = (1, 7, 2)
-=======
 VERSION = "2.0.0nw1"
-
->>>>>>> 477b3fd6dc61915b576a3706d7d429d8a1c8f414:thermostat_nw/__init__.py
 
 def get_version():
     return VERSION

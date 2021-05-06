@@ -2,11 +2,11 @@ import os
 import logging
 import logging.config
 import json
-from thermostat.importers import from_csv
-from thermostat.exporters import metrics_to_csv, certification_to_csv
-from thermostat.stats import compute_summary_statistics
-from thermostat.stats import summary_statistics_to_csv
-from thermostat.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+from thermostat_nw.importers import from_csv
+from thermostat_nw.exporters import metrics_to_csv, certification_to_csv
+from thermostat_nw.stats import compute_summary_statistics
+from thermostat_nw.stats import summary_statistics_to_csv
+from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
 
 
 # This is an example of how to best use the new multi-processing functionality.

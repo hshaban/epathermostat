@@ -1,5 +1,5 @@
-from thermostat.core import Thermostat
-from thermostat.equipment_type import (
+from thermostat_nw.core import Thermostat
+from thermostat_nw.equipment_type import (
     has_heating,
     has_cooling,
     has_auxiliary,
@@ -12,9 +12,9 @@ from thermostat.equipment_type import (
 )
 
 import pandas as pd
-from thermostat.stations import get_closest_station_by_zipcode
+from thermostat_nw.stations import get_closest_station_by_zipcode
 
-from thermostat.eeweather_wrapper import get_indexed_temperatures_eeweather
+from thermostat_nw.eeweather_wrapper import get_indexed_temperatures_eeweather
 from eeweather.cache import KeyValueStore
 from eeweather.exceptions import ISDDataNotAvailableError
 import json

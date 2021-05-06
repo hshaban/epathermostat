@@ -1,6 +1,6 @@
 import pandas as pd
 import warnings
-from thermostat.columns import EXPORT_COLUMNS, CERTIFICATION_HEADERS
+from thermostat_nw.columns import EXPORT_COLUMNS, CERTIFICATION_HEADERS
 
 
 warnings.simplefilter("module", Warning)

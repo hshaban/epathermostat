@@ -4,7 +4,7 @@ from itertools import cycle
 from zipfile import ZipFile
 import tempfile
 import os
-from thermostat.stations import get_closest_station_by_zipcode
+from thermostat_nw.stations import get_closest_station_by_zipcode
 
 
 def schedule_batches(metadata_filename, n_batches, zip_files=False, batches_dir=None):

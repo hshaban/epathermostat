@@ -2,12 +2,12 @@ import datetime
 import pandas as pd
 import pytest
 
-from thermostat.importers import (
+from thermostat_nw.importers import (
     from_csv,
     normalize_utc_offset,
 )
 
-from thermostat.util.testing import get_data_path
+from thermostat_nw.util.testing import get_data_path
 
 from .fixtures.single_stage import (
     thermostat_type_1,

@@ -1,5 +1,5 @@
-from thermostat.parallel import schedule_batches
-from thermostat.equipment_type import EQUIPMENT_MAPPING
+from thermostat_nw.parallel import schedule_batches
+from thermostat_nw.equipment_type import EQUIPMENT_MAPPING
 
 import os
 import tempfile

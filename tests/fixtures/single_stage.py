@@ -1,7 +1,7 @@
-from thermostat.importers import from_csv
-from thermostat.importers import get_single_thermostat
-from thermostat.util.testing import get_data_path
-from thermostat.core import Thermostat, CoreDaySet
+from thermostat_nw.importers import from_csv
+from thermostat_nw.importers import get_single_thermostat
+from thermostat_nw.util.testing import get_data_path
+from thermostat_nw.core import Thermostat, CoreDaySet
 from tempfile import TemporaryDirectory
 
 import pandas as pd

@@ -7,13 +7,13 @@ import pandas as pd
 
 from datetime import datetime
 
-from thermostat.core import (
+from thermostat_nw.core import (
     __pandas_warnings,
     percent_savings,
     RESISTANCE_HEAT_USE_BIN_PAIRS,
 )
-from thermostat.importers import from_csv
-from thermostat.util.testing import get_data_path
+from thermostat_nw.importers import from_csv
+from thermostat_nw.util.testing import get_data_path
 
 from .fixtures.single_stage import (
     thermostat_type_1,

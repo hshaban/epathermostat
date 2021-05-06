@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from thermostat.eeweather_wrapper import get_indexed_temperatures_eeweather
+from thermostat_nw.eeweather_wrapper import get_indexed_temperatures_eeweather
 from .fixtures.single_stage import thermostat_type_1
 
 
