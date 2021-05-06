@@ -9,10 +9,10 @@ from itertools import islice, cycle
 
 import pytest
 
-from thermostat.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
-from thermostat.exporters import certification_to_csv
-from thermostat.columns import EXPORT_COLUMNS
-from thermostat.stats import (
+from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+from thermostat_nw.exporters import certification_to_csv
+from thermostat_nw.columns import EXPORT_COLUMNS
+from thermostat_nw.stats import (
     combine_output_dataframes,
     compute_summary_statistics,
     summary_statistics_to_csv,

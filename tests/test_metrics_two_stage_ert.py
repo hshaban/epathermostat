@@ -6,8 +6,8 @@ import tempfile
 
 import pytest
 
-from thermostat.exporters import metrics_to_csv
-from thermostat.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+from thermostat_nw.exporters import metrics_to_csv
+from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
 
 from .fixtures.two_stage_ert import (
     thermostat_ert_hpeb_2_hp_2,
@@ -17,7 +17,7 @@ from .fixtures.two_stage_ert import (
     thermostat_ert_na_2_hp_2,
     metrics_ert_hpeb_2_hp_2_data,
 )
-from thermostat.columns import EXPORT_COLUMNS
+from thermostat_nw.columns import EXPORT_COLUMNS
 import six
 
 

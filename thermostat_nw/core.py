@@ -10,9 +10,9 @@ from scipy.optimize import leastsq, least_squares
 from scipy.special import erf
 from scipy import integrate
 
-from thermostat import get_version
-from thermostat.climate_zone import retrieve_climate_zone
-from thermostat.equipment_type import (
+from thermostat_nw import get_version
+from thermostat_nw.climate_zone import retrieve_climate_zone
+from thermostat_nw.equipment_type import (
     has_heating,
     has_cooling,
     has_auxiliary,
@@ -225,7 +225,7 @@ class Thermostat(object):
                 pd.Series.sum, skipna=False
             )
         else:
-            self.auxiliary_runtime_daily = None
+            self.auxiliary_runtime_daily = pd.Series()
         if (
             hasattr(emergency_heat_runtime, "empty")
             and emergency_heat_runtime.empty is False
@@ -234,7 +234,7 @@ class Thermostat(object):
                 pd.Series.sum, skipna=False
             )
         else:
-            self.emergency_runtime_daily = None
+            self.emergency_runtime_daily = pd.Series()
 
         self.heating_demand = None
         self.tau = None
@@ -257,12 +257,12 @@ class Thermostat(object):
 
     def get_climate_zones(self):
         northwest_climate_zone_filename = "northwest_climate_zone_mapping.csv"
-        if not resource_exists("thermostat.resources", northwest_climate_zone_filename):
+        if not resource_exists("thermostat_nw.resources", northwest_climate_zone_filename):
             self.heating_zone_nw = None
             self.cooling_zone_nw = None
             return None
         with resource_stream(
-            "thermostat.resources", "northwest_climate_zone_mapping.csv"
+            "thermostat_nw.resources", "northwest_climate_zone_mapping.csv"
         ) as f:
             mapping = pd.read_csv(f, dtype=str)
         try:
@@ -280,9 +280,9 @@ class Thermostat(object):
 
     def find_baselines(self):
         heatpump_baseline_filename = f"heatpump_baseline_nw_hz{self.heating_zone_nw}_cz{self.cooling_zone_nw}.csv"
-        if not resource_exists("thermostat.resources", heatpump_baseline_filename):
+        if not resource_exists("thermostat_nw.resources", heatpump_baseline_filename):
             heatpump_baseline_filename = "heatpump_baseline_default.csv"
-        with resource_stream("thermostat.resources", heatpump_baseline_filename) as f:
+        with resource_stream("thermostat_nw.resources", heatpump_baseline_filename) as f:
             self.runtime_heatpump_baseline = pd.read_csv(f)
 
         if self.heat_type.startswith("heat_pump"):
@@ -293,19 +293,19 @@ class Thermostat(object):
             f"temperature_baseline_hz{self.heating_zone_nw}_{heat_type}.csv"
         )
         if not resource_exists(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             heat_temperature_baseline_filename,
         ):
             heat_temperature_baseline_filename = (
                 "temperature_baseline_hz{self.heating_zone_nw}_default.csv"
             )
         if not resource_exists(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             heat_temperature_baseline_filename,
         ):
             heat_temperature_baseline_filename = "temperature_baseline_default.csv"
         with resource_stream(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             heat_temperature_baseline_filename,
         ) as f:
             self.hourly_temperature_baseline_heating = pd.read_csv(f)
@@ -314,19 +314,19 @@ class Thermostat(object):
             f"temperature_baseline_cz{self.cooling_zone_nw}_{self.cool_type}.csv"
         )
         if not resource_exists(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             cool_temperature_baseline_filename,
         ):
             cool_temperature_baseline_filename = (
                 "temperature_baseline_cz{self.cooling_zone_nw}_default.csv"
             )
         if not resource_exists(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             cool_temperature_baseline_filename,
         ):
             cool_temperature_baseline_filename = "temperature_baseline_default.csv"
         with resource_stream(
-            "thermostat.resources.temperature_baselines_nw",
+            "thermostat_nw.resources.temperature_baselines_nw",
             cool_temperature_baseline_filename,
         ) as f:
             self.hourly_temperature_baseline_cooling = pd.read_csv(f)

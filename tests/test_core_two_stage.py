@@ -6,8 +6,8 @@ import pandas as pd
 
 from datetime import datetime
 
-from thermostat.importers import from_csv
-from thermostat.util.testing import get_data_path
+from thermostat_nw.importers import from_csv
+from thermostat_nw.util.testing import get_data_path
 
 from .fixtures.two_stage import (
     thermostat_na_2_hp_2,

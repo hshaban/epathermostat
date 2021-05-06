@@ -49,7 +49,7 @@ def retrieve_climate_zone(climate_zone_mapping, zipcode):
     )
     if climate_zone_mapping is None:
         with resource_stream(
-            "thermostat.resources",
+            "thermostat_nw.resources",
             "Building America Climate Zone to Zipcode Database_Rev2_2016.09.08.csv",
         ) as f:
             mapping = _load_mapping(f)
@@ -59,7 +59,7 @@ def retrieve_climate_zone(climate_zone_mapping, zipcode):
         except Exception as e:
             raise ValueError("Could not load climate zone mapping: %s" % e)
 
-    with resource_stream("thermostat.resources", "regional_baselines.csv") as f:
+    with resource_stream("thermostat_nw.resources", "regional_baselines.csv") as f:
         df = pd.read_csv(
             f,
             usecols=[

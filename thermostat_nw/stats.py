@@ -8,8 +8,8 @@ from functools import reduce
 from pkg_resources import resource_stream
 import logging
 
-from thermostat import get_version
-from thermostat.columns import (
+from thermostat_nw import get_version
+from thermostat_nw.columns import (
     REAL_OR_INTEGER_VALUED_COLUMNS_HEATING,
     REAL_OR_INTEGER_VALUED_COLUMNS_COOLING,
     REAL_OR_INTEGER_VALUED_COLUMNS_ALL,
@@ -622,7 +622,7 @@ def compute_summary_statistics(
         return heating_weights, cooling_weights
 
     with resource_stream(
-        "thermostat.resources", "NationalAverageClimateZoneWeightings.csv"
+        "thermostat_nw.resources", "NationalAverageClimateZoneWeightings.csv"
     ) as f:
         heating_weights, cooling_weights = _load_climate_zone_weights(f)
 
