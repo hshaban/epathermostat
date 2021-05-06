@@ -10,7 +10,7 @@ setup(
     version=version,
     description="Calculate connected thermostat savings",
     long_description=long_description,
-    url="https://github.com/hshaban/epathermostat",
+    url="https://github.com/hshaban/epathermostat_nw",
     author="Empower Dataworks + Apex Analytics. Forked from https://github.com/EPAENERGYSTAR/epathermostat.",
     license="MIT",
     classifiers=[

@@ -9,6 +9,7 @@ import numpy as np
 from scipy.optimize import leastsq, least_squares
 from scipy.special import erf
 from scipy import integrate
+import statsmodels.formula.api as smf
 
 from thermostat_nw import get_version
 from thermostat_nw.climate_zone import retrieve_climate_zone
@@ -208,13 +209,13 @@ class Thermostat(object):
                 pd.Series.sum, skipna=False
             )
         else:
-            self.cool_runtime_daily = None
+            self.cool_runtime_daily = pd.Series()
         if hasattr(heat_runtime, "empty") and heat_runtime.empty is False:
             self.heat_runtime_daily = heat_runtime.resample("D").agg(
                 pd.Series.sum, skipna=False
             )
         else:
-            self.heat_runtime_daily = None
+            self.heat_runtime_daily = pd.Series()
         self.auxiliary_heat_runtime = auxiliary_heat_runtime
         self.emergency_heat_runtime = emergency_heat_runtime
         if (
@@ -1037,6 +1038,9 @@ class Thermostat(object):
                 np.nan,
                 np.nan,
                 np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
             )
 
         tau_estimate = y[0][0]
@@ -1185,6 +1189,9 @@ class Thermostat(object):
             )  # make sure no other type errors are sneaking in
             return (
                 pd.Series([], index=daily_index, dtype="Float64"),
+                np.nan,
+                np.nan,
+                np.nan,
                 np.nan,
                 np.nan,
                 np.nan,
@@ -1677,6 +1684,131 @@ class Thermostat(object):
             sigmoid_integral = None
 
         return mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral
+
+    def fit_linear_cooling_model(self, core_day_set):
+        self._protect_cooling()
+        
+        df_daily = self.get_delta_df_cooling(core_day_set)
+        if df_daily.shape[0] == 0:
+            return (np.nan, np.nan, np.nan, np.nan, np.nan,
+                np.nan, np.nan, np.nan)
+        model = smf.ols(formula='temperature_delta ~ cool_runtime', data=df_daily)
+        
+        rsquared = model.fit().rsquared
+        intercept = model.fit().params['Intercept']
+        intercept_se = model.fit().bse['Intercept']
+        cool_slope = model.fit().params['cool_runtime']
+        cool_slope_se = model.fit().bse['cool_runtime']
+        resistance_slope = np.nan
+        resistance_slope_se = np.nan
+        mse = np.nanmean((model.fit().resid) ** 2)
+        rmse = mse ** 0.5
+        mean_daily_runtime = np.nanmean(df_daily.cool_runtime)
+
+        try:
+            cvrmse = rmse / mean_daily_runtime
+        except ZeroDivisionError:
+            logger.debug(
+                "CVRMSE divided by zero: %s / %s "
+                "for thermostat_id %s " % (rmse, mean_daily_runtime, self.thermostat_id)
+            )
+            cvrmse = np.nan
+
+        return (intercept, intercept_se, cool_slope, cool_slope_se, resistance_slope,
+                resistance_slope_se, cvrmse, rsquared)
+
+    def get_delta_df_cooling(self, core_day_set):
+        self._protect_cooling()
+        
+        df = pd.DataFrame()
+        df["temperature_out"] = self.temperature_out
+        df["temperature_in"] = self.temperature_in
+        df["temperature_delta"] = df.temperature_out - df.temperature_in
+        df["cool_runtime"] = self.cool_runtime_hourly
+        
+        df_daily = df.resample("D").agg(
+                pd.Series.sum, skipna=False
+            )
+        df_daily = df_daily[core_day_set.daily]
+        return df_daily.loc[:, ['temperature_delta', 'cool_runtime']]
+
+    def fit_linear_heating_model(self, core_day_set):
+        self._protect_heating()
+        
+        if self.has_auxiliary:
+            df_daily = self.get_delta_df_heatpump(core_day_set)
+            if df_daily.shape[0] == 0:
+                return (np.nan, np.nan, np.nan, np.nan, np.nan,
+                        np.nan, np.nan, np.nan)
+            model = smf.ols(formula='temperature_delta ~ adjusted_heat_runtime + resistance_runtime', data=df_daily)
+            resistance_slope = model.fit().params['resistance_runtime']
+            resistance_slope_se = model.fit().bse['resistance_runtime']
+            heat_slope = model.fit().params['adjusted_heat_runtime']
+            heat_slope_se = model.fit().bse['adjusted_heat_runtime']
+            mean_daily_runtime = np.nanmean(df_daily.adjusted_heat_runtime)
+        else:
+            df_daily = self.get_delta_df_furnace(core_day_set)
+            if df_daily.shape[0] == 0:
+                return (np.nan, np.nan, np.nan, np.nan, np.nan,
+                        np.nan, np.nan, np.nan)
+            model = smf.ols(formula='temperature_delta ~ heat_runtime', data=df_daily)
+            resistance_slope = np.nan
+            resistance_slope_se = np.nan
+            heat_slope = model.fit().params['heat_runtime']
+            heat_slope_se = model.fit().bse['heat_runtime']
+            mean_daily_runtime = np.nanmean(df_daily.heat_runtime)
+
+        rsquared = model.fit().rsquared
+        intercept = model.fit().params['Intercept']
+        intercept_se = model.fit().bse['Intercept']
+        mse = np.nanmean((model.fit().resid) ** 2)
+        rmse = mse ** 0.5
+
+        try:
+            cvrmse = rmse / mean_daily_runtime
+        except ZeroDivisionError:
+            logger.debug(
+                "CVRMSE divided by zero: %s / %s "
+                "for thermostat_id %s " % (rmse, mean_daily_runtime, self.thermostat_id)
+            )
+            cvrmse = np.nan
+
+        return (intercept, intercept_se, heat_slope, heat_slope_se, resistance_slope,
+                resistance_slope_se, cvrmse, rsquared)
+
+    def get_delta_df_furnace(self, core_day_set):
+        self._protect_heating()
+        
+        df = pd.DataFrame()
+        df["temperature_out"] = self.temperature_out
+        df["temperature_in"] = self.temperature_in
+        df["temperature_delta"] = df.temperature_in - df.temperature_out
+        df["heat_runtime"] = self.heat_runtime_hourly
+        
+        df_daily = df.resample("D").agg(
+                pd.Series.sum, skipna=False
+            )
+        df_daily = df_daily[core_day_set.daily]
+        
+        return df_daily.loc[:, ['temperature_delta', 'heat_runtime']]
+
+    def get_delta_df_heatpump(self, core_day_set):
+        self._protect_heating()
+        
+        df = pd.DataFrame()
+        df["temperature_out"] = self.temperature_out
+        df["temperature_in"] = self.temperature_in
+        df["temperature_delta"] = df.temperature_in - df.temperature_out
+        df["heat_runtime"] = self.heat_runtime_hourly
+        df["adjusted_heat_runtime"] = df.heat_runtime * (1 - 0.012 * (47 - df.temperature_out))
+        df["resistance_runtime"] = self.auxiliary_heat_runtime + self.emergency_heat_runtime
+        
+        df_daily = df.resample("D").agg(
+                pd.Series.sum, skipna=False
+            )
+        df_daily = df_daily[core_day_set.daily]
+        
+        return df_daily.loc[:, ['temperature_delta', 'heat_runtime', 'adjusted_heat_runtime', 'resistance_runtime']]
 
     def get_binned_demand_daily(self, demand, bins):
         """NWMOD: Create a binned dataframe for thermal demand.
@@ -2348,6 +2480,10 @@ class Thermostat(object):
             overall_temperature_variance,
             weekly_temperature_variance,
         ) = self.get_temperature_variance(core_cooling_day_set)
+        
+        (lm_intercept, lm_intercept_se, lm_main_slope, lm_main_slope_se,
+         lm_secondary_slope, lm_secondary_slope_se, lm_cvrmse, lm_rsquared
+                ) = self.fit_linear_cooling_model(core_cooling_day_set)
 
         outputs = {
             "sw_version": get_version(),
@@ -2418,6 +2554,14 @@ class Thermostat(object):
             "avg_daily_heating_runtime": avg_daily_heating_runtime,
             "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
             "avg_daily_emergency_runtime": avg_daily_emergency_runtime,
+            "lm_intercept": lm_intercept,
+            "lm_intercept_se": lm_intercept_se,
+            "lm_main_slope": lm_main_slope,
+            "lm_main_slope_se": lm_main_slope_se,
+            "lm_secondary_slope": lm_secondary_slope,
+            "lm_secondary_slope_se": lm_secondary_slope_se,
+            "lm_cvrmse": lm_cvrmse,
+            "lm_rsquared": lm_rsquared
         }
         return outputs
 
@@ -2634,6 +2778,10 @@ class Thermostat(object):
             weekly_temperature_variance,
         ) = self.get_temperature_variance(core_heating_day_set)
 
+        (lm_intercept, lm_intercept_se, lm_main_slope, lm_main_slope_se,
+         lm_secondary_slope, lm_secondary_slope_se, lm_cvrmse, lm_rsquared
+                ) = self.fit_linear_heating_model(core_heating_day_set)
+
         outputs = {
             "sw_version": get_version(),
             "ct_identifier": self.thermostat_id,
@@ -2703,6 +2851,14 @@ class Thermostat(object):
             "avg_daily_heating_runtime": avg_daily_heating_runtime,
             "avg_daily_auxiliary_runtime": avg_daily_auxiliary_runtime,
             "avg_daily_emergency_runtime": avg_daily_emergency_runtime,
+            "lm_intercept": lm_intercept,
+            "lm_intercept_se": lm_intercept_se,
+            "lm_main_slope": lm_main_slope,
+            "lm_main_slope_se": lm_main_slope_se,
+            "lm_secondary_slope": lm_secondary_slope,
+            "lm_secondary_slope_se": lm_secondary_slope_se,
+            "lm_cvrmse": lm_cvrmse,
+            "lm_rsquared": lm_rsquared
         }
 
         return outputs
