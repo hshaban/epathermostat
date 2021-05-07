@@ -1054,7 +1054,10 @@ class Thermostat(object):
         rmse = mse ** 0.5
         mean_daily_runtime = np.nanmean(daily_runtime)
 
-        cov_x = y[1].tolist()
+        if y[1] is not None:
+            cov_x = y[1].tolist()
+        else:
+            cov_x = [[]]
         nfev = y[2]["nfev"]
         mesg = y[3].replace("\n", "")
         try:
@@ -1211,8 +1214,10 @@ class Thermostat(object):
         mse = np.nanmean((errors) ** 2)
         rmse = mse ** 0.5
         mean_daily_runtime = np.nanmean(daily_runtime)
-
-        cov_x = y[1].tolist()
+        if y[1] is not None:
+            cov_x = y[1].tolist()
+        else:
+            cov_x = [[]]
         nfev = y[2]["nfev"]
         mesg = y[3].replace("\n", "")
         try:
@@ -2220,8 +2225,8 @@ class Thermostat(object):
 
     def calculate_epa_field_savings_metrics(
         self,
-        core_cooling_day_set_method="entire_dataset",
-        core_heating_day_set_method="entire_dataset",
+        core_cooling_day_set_method="year_end_to_end",
+        core_heating_day_set_method="year_mid_to_mid",
         climate_zone_mapping=None,
     ):
         """Calculates metrics for connected thermostat savings as defined by
