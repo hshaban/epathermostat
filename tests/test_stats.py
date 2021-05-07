@@ -9,7 +9,9 @@ from itertools import islice, cycle
 
 import pytest
 
-from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+from thermostat_nw.multiple import (
+    multiple_thermostat_calculate_epa_field_savings_metrics,
+)
 from thermostat_nw.exporters import certification_to_csv
 from thermostat_nw.columns import EXPORT_COLUMNS
 from thermostat_nw.stats import (
@@ -90,6 +92,9 @@ def get_fake_output_df(n_columns):
         "cv_root_mean_sq_err": float_column,
         "mean_abs_err": float_column,
         "mean_abs_pct_err": float_column,
+        "cov_x": string_placeholder,
+        "nfev": float_column,
+        "mesg": string_placeholder,
         "total_core_cooling_runtime": float_column,
         "total_core_heating_runtime": float_column,
         "total_auxiliary_heating_core_day_runtime": float_column,
@@ -107,6 +112,18 @@ def get_fake_output_df(n_columns):
         "hvac_constant": float_column,
         "overall_temperature_variance": float_column,
         "weekly_temperature_variance": float_column,
+        "avg_daily_cooling_runtime": float_column,
+        "avg_daily_heating_runtime": float_column,
+        "avg_daily_auxiliary_runtime": float_column,
+        "avg_daily_emergency_runtime": float_column,
+        "lm_intercept": float_column,
+        "lm_intercept_se": float_column,
+        "lm_main_slope": float_column,
+        "lm_main_slope_se": float_column,
+        "lm_secondary_slope": float_column,
+        "lm_secondary_slope_se": float_column,
+        "lm_cvrmse": float_column,
+        "lm_rsquared": float_column,
         "dnru_daily": float_column,
         "dnru_reduction_daily": float_column,
         "mu_estimate_daily": float_column,
@@ -248,7 +265,7 @@ def combined_dataframe():
 
 def test_combine_output_dataframes(dataframes):
     combined = combine_output_dataframes(dataframes)
-    assert combined.shape == (20, 104)
+    assert combined.shape == (20, 119)
 
 
 def test_compute_summary_statistics(combined_dataframe):
@@ -258,10 +275,10 @@ def test_compute_summary_statistics(combined_dataframe):
         49,
         49,
         49,
-        2693,
-        1209,
-        2693,
-        1209,
+        3057,
+        1573,
+        3057,
+        1573,
     ]
 
     def test_compute_summary_statistics_advanced(combined_dataframe):
@@ -277,14 +294,14 @@ def test_compute_summary_statistics(combined_dataframe):
             49,
             49,
             49,
-            2693,
-            1209,
-            2693,
-            1209,
-            2693,
-            1209,
-            2693,
-            1209,
+            3057,
+            1573,
+            3057,
+            1573,
+            3057,
+            1573,
+            3057,
+            1573,
         ]
 
         def test_summary_statistics_to_csv(combined_dataframe):
@@ -296,7 +313,7 @@ def test_compute_summary_statistics(combined_dataframe):
     assert isinstance(stats_df, pd.DataFrame)
 
     stats_df_reread = pd.read_csv(fname)
-    assert stats_df_reread.shape == (2777, 5)
+    assert stats_df_reread.shape == (3141, 5)
 
 
 def test_certification(combined_dataframe):

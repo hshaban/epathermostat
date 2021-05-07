@@ -7,7 +7,9 @@ import tempfile
 import pytest
 
 from thermostat_nw.exporters import metrics_to_csv
-from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+from thermostat_nw.multiple import (
+    multiple_thermostat_calculate_epa_field_savings_metrics,
+)
 
 from .fixtures.two_stage_ert import (
     thermostat_ert_hpeb_2_hp_2,

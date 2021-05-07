@@ -41,6 +41,9 @@ def test_get_cooling_demand(
         cvrmse,
         mape,
         mae,
+        cov_x,
+        nfev,
+        mesg,
     ) = thermostat_type_1.get_cooling_demand(core_cooling_day_set_type_1)
     assert_allclose(
         demand.mean(), metrics_type_1_data[0]["mean_demand"], rtol=RTOL, atol=ATOL
@@ -59,6 +62,9 @@ def test_get_heating_demand(
         cvrmse,
         mape,
         mae,
+        cov_x,
+        nfev,
+        mesg,
     ) = thermostat_type_1.get_heating_demand(core_heating_day_set_type_1)
     assert_allclose(
         demand.mean(), metrics_type_1_data[1]["mean_demand"], rtol=RTOL, atol=ATOL

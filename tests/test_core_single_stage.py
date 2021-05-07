@@ -91,7 +91,13 @@ def test_multiple_same_key(thermostats_multiple_same_key):
     assert len(metrics) == 4
 
     for key in metrics[0]:
-        assert metrics[0][key] == metrics[2][key]
+        if type(metrics[0][key]) == float:
+            if np.isnan(metrics[0][key]):
+                assert np.isnan(metrics[2][key])
+            else:
+                assert metrics[0][key] == metrics[2][key]
+        else:
+            assert metrics[0][key] == metrics[2][key]
 
     for key in metrics[1]:
         # nan can never be equal, so skip nan
@@ -178,13 +184,13 @@ def test_thermostat_type_1_get_core_cooling_days_bad_methods(thermostat_type_1):
 
 def test_thermostat_type_1_no_data(thermostat_type_1):
     heat_runtime_daily = thermostat_type_1.heat_runtime_daily
-    thermostat_type_1.heat_runtime_daily = None
+    thermostat_type_1.heat_runtime_daily = pd.Series()
     with pytest.raises(ValueError) as record:
         thermostat_type_1.validate()
     thermostat_type_1.heat_runtime_daily = heat_runtime_daily
 
     cool_runtime_daily = thermostat_type_1.cool_runtime_daily
-    thermostat_type_1.cool_runtime_daily = None
+    thermostat_type_1.cool_runtime_daily = pd.Series()
     with pytest.raises(ValueError) as record:
         thermostat_type_1.validate()
     thermostat_type_1.cool_runtime_daily = cool_runtime_daily
