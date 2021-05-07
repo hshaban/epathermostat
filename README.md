@@ -28,12 +28,12 @@ from thermostat_nw.exporters import metrics_to_csv
 from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
 
 data_dir = '/home/thermostat_nw' # Change this to the folder that contains the metdata and thermostat telemetry files
-metadata_filename = os.path.join(data_dir, "metadata.csv") # Change tthe file name to match your metadata file
+metadata_filename = os.path.join(data_dir, "metadata.csv") # Change the file name to match your metadata file
 thermostats = from_csv(metadata_filename, verbose=True)
 
 metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
 
-output_filename = os.path.join(data_dir, "thermostat_example_output.csv")
+output_filename = os.path.join(data_dir, "thermostat_outputs.csv") 
 metrics_df = metrics_to_csv(metrics, output_filename)
 
 ```

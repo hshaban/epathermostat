@@ -29,6 +29,7 @@ setup(
         "eemeter==2.5.2",
         "eeweather==0.3.24",
         "pandas==0.25.3",
+        "numpy==1.19.4",
         "sqlalchemy==1.3.1",
         "zipcodes==1.1.2",
     ],
