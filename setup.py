@@ -2,7 +2,11 @@ from setuptools import setup, find_packages, Command
 
 version = __import__("thermostat_nw").get_version()
 
-long_description = "Calculate connected thermostat temperature/run-time savings."
+long_description = """
+This is a fork of EPA's Connected Thermostat library (https://github.com/EPAENERGYSTAR/epathermostat), 
+intended to calculate connected thermostat temperature and run-time savings. This version adds 
+several metrics that are being used to evaluate real-world smart thermostat savings in the Northwestern USA.
+"""
 
 
 setup(

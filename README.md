@@ -3,22 +3,50 @@ This a fork of the EPA thermostat metric repository. It is a custom version deve
 Connected Thermostat draft field savings metrics module
 =======================================================
 
-[![Build Status](https://api.travis-ci.org/EPAENERGYSTAR/epathermostat.svg?branch=feature%2Fepathermostat_2.0)](https://travis-ci.org/github/EPAENERGYSTAR/epathermostat)
-
 Calculate temperature/run-time savings for connected thermostats using this
 package.
+
+Usage
+-----
+You'll need to generate a metadata file that contains general information about the thermostats.
+Then, you'll need the hourly thermostat telemetry files.
+
+Both of these file types need to conform to the EPA V2 specification.
+
+Start by creating a virtual environment for this analysis.
+```
+# if using virtualenvwrapper (see https://virtualenvwrapper.readthedocs.org/en/latest/install.html)
+$ mkvirtualenv thermostat_nw
+(thermostat)$ pip install thermostat-nw
+```
+Then, create an analysis script as follows:
+```
+import os
+
+from thermostat_nw.importers import from_csv
+from thermostat_nw.exporters import metrics_to_csv
+from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savings_metrics
+
+data_dir = '/home/thermostat_nw' # Change this to the folder that contains the metdata and thermostat telemetry files
+metadata_filename = os.path.join(data_dir, "metadata.csv") # Change tthe file name to match your metadata file
+thermostats = from_csv(metadata_filename, verbose=True)
+
+metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
+
+output_filename = os.path.join(data_dir, "thermostat_example_output.csv")
+metrics_df = metrics_to_csv(metrics, output_filename)
+
+```
+Finally, execute the script within your virtual environment.
+```
+(thermostat)$ python script.py
+```
+
 
 Documentation
 -------------
 
-Documentation is on [Read the Docs](http://epathermostat.readthedocs.io/en/latest/).
+Technical documentation is on [Read the Docs](http://epathermostat.readthedocs.io/en/latest/).
 
-Tests
------
+For information about metrics and methods that were added beyond the EPA specification, please contact hassan@empowerdataworks.com.
 
-Tests for this package can be run using the py.test tool as follows:
-
-    $ py.test
-
-For additional information and options for running tests, please see
-the [pytest documentation](https://pytest.org/latest/getting-started.html).
