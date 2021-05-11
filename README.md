@@ -31,12 +31,13 @@ from thermostat_nw.multiple import multiple_thermostat_calculate_epa_field_savin
 
 data_dir = '/home/thermostat_nw' # Change this to the folder that contains the metdata and thermostat telemetry files
 metadata_filename = os.path.join(data_dir, "metadata.csv") # Change the file name to match your metadata file
-thermostats = from_csv(metadata_filename, verbose=True)
 
+thermostats = from_csv(metadata_filename, verbose=True)
 metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
 output_filename = os.path.join(data_dir, "thermostat_outputs.csv") 
 metrics_df = metrics_to_csv(metrics, output_filename)
 
+thermostats = from_csv(metadata_filename, verbose=True)
 metrics_ed = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats, how="entire_dataset")
 output_filename_ed = os.path.join(data_dir, "thermostat_outputs_entire_dataset.csv") 
 metrics_df_ed = metrics_to_csv(metrics_ed, output_filename_ed)
