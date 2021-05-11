@@ -13,10 +13,12 @@ Then, you'll need the hourly thermostat telemetry files.
 
 Both of these file types need to conform to the EPA V2 specification.
 
-Start by creating a virtual environment for this analysis.
+Start by creating a virtual environment for this analysis. Some older components of the EPA library rely on Python 3.7, so make
+sure you create a Python 3.7 environment. 
 ```
 # if using virtualenvwrapper (see https://virtualenvwrapper.readthedocs.org/en/latest/install.html)
-$ mkvirtualenv thermostat_nw
+$ mkvirtualenv -p python3.7 thermostat_nw
+(thermostat)$ pip install shapely #May be required on Windows if you get l-b_geos errors
 (thermostat)$ pip install thermostat-nw
 ```
 Then, create an analysis script as follows:
