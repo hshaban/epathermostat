@@ -28,7 +28,10 @@ def metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage(
     thermostat_hpeb_2_hp_2,
 ):
     metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage = (
-        thermostat_hpeb_2_hp_2.calculate_epa_field_savings_metrics()
+        thermostat_hpeb_2_hp_2.calculate_epa_field_savings_metrics(
+            core_cooling_day_set_method="entire_dataset",
+            core_heating_day_set_method="entire_dataset",
+        )
     )
     return metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage
 
@@ -39,7 +42,7 @@ def metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage_multiple(
 ):
     metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage = (
         multiple_thermostat_calculate_epa_field_savings_metrics(
-            [thermostat_hpeb_2_hp_2]
+            [thermostat_hpeb_2_hp_2], how="entire_dataset"
         )
     )
     return metrics_heat_pump_electric_backup_two_stage_heat_pump_two_stage
@@ -121,21 +124,28 @@ def test_multiple_thermostat_calculate_epa_field_savings_metrics_heat_pump_elect
 
 
 def test_calculate_epa_field_savings_metrics_type_3(thermostat_fu_2_ce_2):
-    metrics_type_3 = thermostat_fu_2_ce_2.calculate_epa_field_savings_metrics()
+    metrics_type_3 = thermostat_fu_2_ce_2.calculate_epa_field_savings_metrics(
+        core_cooling_day_set_method="entire_dataset",
+        core_heating_day_set_method="entire_dataset",
+    )
     assert len(metrics_type_3) == 2
 
 
 def test_calculate_epa_field_savings_metrics_type_4(
     thermostat_furnace_or_boiler_two_stage_none_single_stage,
 ):
-    metrics_type_4 = (
-        thermostat_furnace_or_boiler_two_stage_none_single_stage.calculate_epa_field_savings_metrics()
+    metrics_type_4 = thermostat_furnace_or_boiler_two_stage_none_single_stage.calculate_epa_field_savings_metrics(
+        core_cooling_day_set_method="entire_dataset",
+        core_heating_day_set_method="entire_dataset",
     )
     assert len(metrics_type_4) == 1
 
 
 def test_calculate_epa_field_savings_metrics_type_5(thermostat_na_2_hp_2):
-    metrics_type_5 = thermostat_na_2_hp_2.calculate_epa_field_savings_metrics()
+    metrics_type_5 = thermostat_na_2_hp_2.calculate_epa_field_savings_metrics(
+        core_cooling_day_set_method="entire_dataset",
+        core_heating_day_set_method="entire_dataset",
+    )
     assert len(metrics_type_5) == 1
 
 

@@ -34,9 +34,12 @@ metadata_filename = os.path.join(data_dir, "metadata.csv") # Change the file nam
 thermostats = from_csv(metadata_filename, verbose=True)
 
 metrics = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats)
-
 output_filename = os.path.join(data_dir, "thermostat_outputs.csv") 
 metrics_df = metrics_to_csv(metrics, output_filename)
+
+metrics_ed = multiple_thermostat_calculate_epa_field_savings_metrics(thermostats, how="entire_dataset")
+output_filename_ed = os.path.join(data_dir, "thermostat_outputs_entire_dataset.csv") 
+metrics_df_ed = metrics_to_csv(metrics_ed, output_filename_ed)
 
 ```
 Finally, execute the script within your virtual environment.

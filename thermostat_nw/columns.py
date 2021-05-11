@@ -173,6 +173,9 @@ REAL_OR_INTEGER_VALUED_COLUMNS_COOLING = [
     "lm_secondary_slope_se",
     "lm_cvrmse",
     "lm_rsquared",
+    "excess_resistance_score_1hr",
+    "excess_resistance_score_2hr",
+    "excess_resistance_score_3hr",
 ]
 
 REAL_OR_INTEGER_VALUED_COLUMNS_ALL = (
@@ -238,6 +241,9 @@ REAL_OR_INTEGER_VALUED_COLUMNS_ALL = (
         "lm_secondary_slope_se",
         "lm_cvrmse",
         "lm_rsquared",
+        "excess_resistance_score_1hr",
+        "excess_resistance_score_2hr",
+        "excess_resistance_score_3hr",
     ]
     + RHU_COLUMNS
     + RHU2_IQFLT_COLUMNS
@@ -325,6 +331,9 @@ EXPORT_COLUMNS = [
     "lm_secondary_slope_se",
     "lm_cvrmse",
     "lm_rsquared",
+    "excess_resistance_score_1hr",
+    "excess_resistance_score_2hr",
+    "excess_resistance_score_3hr",
 ] + RHU_COLUMNS
 
 CERTIFICATION_HEADERS = [

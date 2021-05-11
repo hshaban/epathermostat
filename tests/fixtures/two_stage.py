@@ -78,7 +78,7 @@ def metrics_hpeb_2_hp_2_data():
 
     data = [
         {
-            "sw_version": "2.0.0nw1",
+            "sw_version": "0.1.2",
             "ct_identifier": "c61badb0e0c0a7e06932de804af43111",
             "heat_type": "heat_pump_electric_backup",
             "heat_stage": "two_stage",
@@ -148,9 +148,12 @@ def metrics_hpeb_2_hp_2_data():
             "lm_secondary_slope_se": nan,
             "lm_cvrmse": 0.1412830071251077,
             "lm_rsquared": 0.8629179431497175,
+            "excess_resistance_score_1hr": nan,
+            "excess_resistance_score_2hr": nan,
+            "excess_resistance_score_3hr": nan,
         },
         {
-            "sw_version": "2.0.0nw1",
+            "sw_version": "0.1.2",
             "ct_identifier": "c61badb0e0c0a7e06932de804af43111",
             "heat_type": "heat_pump_electric_backup",
             "heat_stage": "two_stage",
@@ -220,6 +223,9 @@ def metrics_hpeb_2_hp_2_data():
             "lm_secondary_slope_se": 0.32430215986374933,
             "lm_cvrmse": 0.31227588928455385,
             "lm_rsquared": 0.7640382899823355,
+            "excess_resistance_score_1hr": 0.02958600852236785,
+            "excess_resistance_score_2hr": 0.03484382424947869,
+            "excess_resistance_score_3hr": 0.036309244681024117,
             "total_auxiliary_heating_core_day_runtime": 1512.6000000000001,
             "total_emergency_heating_core_day_runtime": 0.0,
             "dnru_daily": 0.077526531403943,

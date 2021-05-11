@@ -243,7 +243,7 @@ def metrics_type_1_data():
     # this data comes from a script in scripts/test_data_generation.ipynb
     data = [
         {
-            "sw_version": "2.0.0nw1",
+            "sw_version": "0.1.2",
             "ct_identifier": "8465829e-df0d-449e-97bf-96317c24dec3",
             "heat_type": "heat_pump_electric_backup",
             "heat_stage": "single_stage",
@@ -313,9 +313,12 @@ def metrics_type_1_data():
             "lm_secondary_slope_se": nan,
             "lm_cvrmse": 0.02199508838237025,
             "lm_rsquared": 0.9960164062891382,
+            "excess_resistance_score_1hr": nan,
+            "excess_resistance_score_2hr": nan,
+            "excess_resistance_score_3hr": nan,
         },
         {
-            "sw_version": "2.0.0nw1",
+            "sw_version": "0.1.2",
             "ct_identifier": "8465829e-df0d-449e-97bf-96317c24dec3",
             "heat_type": "heat_pump_electric_backup",
             "heat_stage": "single_stage",
@@ -385,6 +388,9 @@ def metrics_type_1_data():
             "lm_secondary_slope_se": 0.05393767120226407,
             "lm_cvrmse": 0.11663640874933306,
             "lm_rsquared": 0.9412359834767653,
+            "excess_resistance_score_1hr": 0.042515624172863656,
+            "excess_resistance_score_2hr": 0.05558006842616611,
+            "excess_resistance_score_3hr": 0.059398409303119244,
             "total_auxiliary_heating_core_day_runtime": 144794.0,
             "total_emergency_heating_core_day_runtime": 2104.0,
             "dnru_daily": 0.2211950234744482,

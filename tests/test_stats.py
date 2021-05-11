@@ -124,6 +124,9 @@ def get_fake_output_df(n_columns):
         "lm_secondary_slope_se": float_column,
         "lm_cvrmse": float_column,
         "lm_rsquared": float_column,
+        "excess_resistance_score_1hr": float_column,
+        "excess_resistance_score_2hr": float_column,
+        "excess_resistance_score_3hr": float_column,
         "dnru_daily": float_column,
         "dnru_reduction_daily": float_column,
         "mu_estimate_daily": float_column,
@@ -265,7 +268,7 @@ def combined_dataframe():
 
 def test_combine_output_dataframes(dataframes):
     combined = combine_output_dataframes(dataframes)
-    assert combined.shape == (20, 119)
+    assert combined.shape == (20, 122)
 
 
 def test_compute_summary_statistics(combined_dataframe):
@@ -276,9 +279,9 @@ def test_compute_summary_statistics(combined_dataframe):
         49,
         49,
         3057,
-        1573,
+        1657,
         3057,
-        1573,
+        1657,
     ]
 
     def test_compute_summary_statistics_advanced(combined_dataframe):
@@ -295,13 +298,13 @@ def test_compute_summary_statistics(combined_dataframe):
             49,
             49,
             3057,
-            1573,
+            1657,
             3057,
-            1573,
+            1657,
             3057,
-            1573,
+            1657,
             3057,
-            1573,
+            1657,
         ]
 
         def test_summary_statistics_to_csv(combined_dataframe):
@@ -313,7 +316,7 @@ def test_compute_summary_statistics(combined_dataframe):
     assert isinstance(stats_df, pd.DataFrame)
 
     stats_df_reread = pd.read_csv(fname)
-    assert stats_df_reread.shape == (3141, 5)
+    assert stats_df_reread.shape == (3225, 5)
 
 
 def test_certification(combined_dataframe):
@@ -330,7 +333,7 @@ def test_iqr_filtering(thermostat_emg_aux_constant_on_outlier):
     thermostats_iqflt = list(thermostat_emg_aux_constant_on_outlier)
     # Run the metrics / statistics with the outlier thermostat in place
     iqflt_metrics = multiple_thermostat_calculate_epa_field_savings_metrics(
-        thermostats_iqflt
+        thermostats_iqflt, how="entire_dataset"
     )
     iqflt_output_dataframe = pd.DataFrame(iqflt_metrics, columns=EXPORT_COLUMNS)
     iqflt_summary_statistics = compute_summary_statistics(iqflt_output_dataframe)
@@ -346,7 +349,7 @@ def test_iqr_filtering(thermostat_emg_aux_constant_on_outlier):
 
     # Re-run the metrics / statistics with the outlier thermostat removed
     noiq_metrics = multiple_thermostat_calculate_epa_field_savings_metrics(
-        thermostats_noiq
+        thermostats_noiq, how="entire_dataset"
     )
     noiq_output_dataframe = pd.DataFrame(noiq_metrics, columns=EXPORT_COLUMNS)
     noiq_summary_statistics = compute_summary_statistics(noiq_output_dataframe)

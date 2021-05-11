@@ -22,7 +22,29 @@ def _calc_epa_func(thermostat):
     return results
 
 
-def multiple_thermostat_calculate_epa_field_savings_metrics(thermostats):
+def _calc_epa_func_entire_dataset(thermostat):
+    """Takes an individual thermostat and runs the
+    calculate_epa_field_savings_metrics method. This method is necessary for
+    the multiprocessing pool as map / imap need a function to run on.
+
+    Parameters
+    ----------
+    thermostat : thermostat
+
+    Returns
+    -------
+    results : results from running calculate_epa_field_savings_metrics
+    """
+    results = thermostat.calculate_epa_field_savings_metrics(
+        core_cooling_day_set_method="entire_dataset",
+        core_heating_day_set_method="entire_dataset",
+    )
+    return results
+
+
+def multiple_thermostat_calculate_epa_field_savings_metrics(
+    thermostats, how="split_dataset"
+):
     """Takes a list of thermostats and uses Python's Multiprocessing module to
     run as many processes in parallel as the system will allow.
 
@@ -41,7 +63,10 @@ def multiple_thermostat_calculate_epa_field_savings_metrics(thermostats):
     thermostats_list = list(thermostats)
 
     pool = Pool()
-    results = pool.imap(_calc_epa_func, thermostats_list)
+    if how == "entire_dataset":
+        results = pool.imap(_calc_epa_func_entire_dataset, thermostats_list)
+    else:
+        results = pool.imap(_calc_epa_func, thermostats_list)
     pool.close()
     pool.join()
 
