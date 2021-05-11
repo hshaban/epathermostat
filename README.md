@@ -18,8 +18,8 @@ sure you create a Python 3.7 environment.
 ```
 # if using virtualenvwrapper (see https://virtualenvwrapper.readthedocs.org/en/latest/install.html)
 $ mkvirtualenv -p python3.7 thermostat_nw
-(thermostat)$ pip install shapely #May be required on Windows if you get l-b_geos errors
-(thermostat)$ pip install thermostat-nw
+(thermostat_nw)$ conda install shapely #May be required on Windows if you get lib_geos errors (or install wheel from https://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely)
+(thermostat_nw)$ pip install thermostat-nw
 ```
 Then, create an analysis script as follows:
 ```
@@ -41,7 +41,7 @@ metrics_df = metrics_to_csv(metrics, output_filename)
 ```
 Finally, execute the script within your virtual environment.
 ```
-(thermostat)$ python script.py
+(thermostat_nw)$ python script.py
 ```
 
 

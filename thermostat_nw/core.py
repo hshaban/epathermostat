@@ -1721,7 +1721,10 @@ class Thermostat(object):
                 "for thermostat_id %s " % (rmse, mean_daily_runtime, self.thermostat_id)
             )
             cvrmse = np.nan
-
+        
+        excess_resistance_score_1hr = np.nan
+        excess_resistance_score_2hr = np.nan
+        excess_resistance_score_3hr = np.nan
         return (
             intercept,
             intercept_se,
@@ -1731,6 +1734,9 @@ class Thermostat(object):
             resistance_slope_se,
             cvrmse,
             rsquared,
+            excess_resistance_score_1hr,
+            excess_resistance_score_2hr,
+            excess_resistance_score_3hr
         )
 
     def get_delta_df_cooling(self, core_day_set):
@@ -1762,6 +1768,12 @@ class Thermostat(object):
             heat_slope = model.fit().params["adjusted_heat_runtime"]
             heat_slope_se = model.fit().bse["adjusted_heat_runtime"]
             mean_daily_runtime = np.nanmean(df_daily.adjusted_heat_runtime)
+            
+            (excess_resistance_score_1hr,
+             excess_resistance_score_2hr,
+             excess_resistance_score_3hr) = self.get_excess_resistance_scores(
+                 core_day_set, heat_slope, resistance_slope)
+            
         else:
             df_daily = self.get_delta_df_furnace(core_day_set)
             if df_daily.shape[0] == 0:
@@ -1772,6 +1784,9 @@ class Thermostat(object):
             heat_slope = model.fit().params["heat_runtime"]
             heat_slope_se = model.fit().bse["heat_runtime"]
             mean_daily_runtime = np.nanmean(df_daily.heat_runtime)
+            excess_resistance_score_1hr = np.nan
+            excess_resistance_score_2hr = np.nan
+            excess_resistance_score_3hr = np.nan
 
         rsquared = model.fit().rsquared
         intercept = model.fit().params["Intercept"]
@@ -1797,6 +1812,9 @@ class Thermostat(object):
             resistance_slope_se,
             cvrmse,
             rsquared,
+            excess_resistance_score_1hr,
+            excess_resistance_score_2hr,
+            excess_resistance_score_3hr
         )
 
     def get_delta_df_furnace(self, core_day_set):
@@ -1840,6 +1858,60 @@ class Thermostat(object):
                 "resistance_runtime",
             ],
         ]
+
+    def get_excess_resistance_scores(self, core_day_set, heat_slope, resistance_slope):
+        self._protect_resistance_heat()
+        self._protect_aux_emerg()
+
+        df = pd.DataFrame()
+        df["temperature_out"] = self.temperature_out
+        df["temperature_in"] = self.temperature_in
+        df["temperature_delta"] = df.temperature_in - df.temperature_out
+        df["heat_runtime"] = self.heat_runtime_hourly
+        df["adjusted_heat_runtime"] = df.heat_runtime * (
+            1 - 0.012 * (47 - df.temperature_out)
+        )
+        df["full_heat_runtime"] = 60 * (
+            1 - 0.012 * (47 - df.temperature_out)
+        )
+        
+        df["available_compressor_runtime"] = df.full_heat_runtime - df.adjusted_heat_runtime
+        df["available_compressor_runtime_nm1"] = df.available_compressor_runtime.shift(1)
+        df["available_compressor_runtime_nm2"] = df.available_compressor_runtime.shift(2)
+    
+        df["resistance_runtime"] = self.auxiliary_heat_runtime + self.emergency_heat_runtime
+        df["resistance_runtime_nm1"] = df.resistance_runtime.shift(1)
+        df["resistance_runtime_nm2"] = df.resistance_runtime.shift(2)
+
+        df = df[core_day_set.hourly]
+
+        df['excess_resistance_1hr'] = df.apply(
+            lambda x: min(x.resistance_runtime * resistance_slope,
+                          x.available_compressor_runtime * heat_slope), axis=1)
+        df['excess_resistance_2hr'] = df.apply(
+            lambda x: min((x.resistance_runtime + 
+                           x.resistance_runtime_nm1) * resistance_slope,
+                          (x.available_compressor_runtime + 
+                           x.available_compressor_runtime_nm1) * heat_slope) / 2, axis=1)
+        df['excess_resistance_3hr'] = df.apply(
+            lambda x: min((x.resistance_runtime + 
+                           x.resistance_runtime_nm1 + 
+                           x.resistance_runtime_nm2) * resistance_slope,
+                          (x.available_compressor_runtime + 
+                           x.available_compressor_runtime_nm1 + 
+                           x.available_compressor_runtime_nm2) * heat_slope) / 3, axis=1)
+        
+        excess_resistance_score_1hr = df.excess_resistance_1hr.sum() / (
+            (df.resistance_runtime * resistance_slope).sum() +
+            (df.adjusted_heat_runtime * heat_slope).sum() )
+        excess_resistance_score_2hr = df.excess_resistance_2hr.sum() / (
+            (df.resistance_runtime * resistance_slope).sum() +
+            (df.adjusted_heat_runtime * heat_slope).sum() )
+        excess_resistance_score_3hr = df.excess_resistance_3hr.sum() / (
+            (df.resistance_runtime * resistance_slope).sum() +
+            (df.adjusted_heat_runtime * heat_slope).sum() )
+
+        return excess_resistance_score_1hr, excess_resistance_score_2hr, excess_resistance_score_3hr
 
     def get_binned_demand_daily(self, demand, bins):
         """NWMOD: Create a binned dataframe for thermal demand.
@@ -2521,6 +2593,9 @@ class Thermostat(object):
             lm_secondary_slope_se,
             lm_cvrmse,
             lm_rsquared,
+            excess_resistance_score_1hr,
+            excess_resistance_score_2hr,
+            excess_resistance_score_3hr
         ) = self.fit_linear_cooling_model(core_cooling_day_set)
 
         outputs = {
@@ -2600,6 +2675,9 @@ class Thermostat(object):
             "lm_secondary_slope_se": lm_secondary_slope_se,
             "lm_cvrmse": lm_cvrmse,
             "lm_rsquared": lm_rsquared,
+            "excess_resistance_score_1hr": excess_resistance_score_1hr,
+            "excess_resistance_score_2hr": excess_resistance_score_2hr,
+            "excess_resistance_score_3hr": excess_resistance_score_3hr
         }
         return outputs
 
@@ -2825,6 +2903,9 @@ class Thermostat(object):
             lm_secondary_slope_se,
             lm_cvrmse,
             lm_rsquared,
+            excess_resistance_score_1hr,
+            excess_resistance_score_2hr,
+            excess_resistance_score_3hr
         ) = self.fit_linear_heating_model(core_heating_day_set)
 
         outputs = {
@@ -2904,6 +2985,9 @@ class Thermostat(object):
             "lm_secondary_slope_se": lm_secondary_slope_se,
             "lm_cvrmse": lm_cvrmse,
             "lm_rsquared": lm_rsquared,
+            "excess_resistance_score_1hr": excess_resistance_score_1hr,
+            "excess_resistance_score_2hr": excess_resistance_score_2hr,
+            "excess_resistance_score_3hr": excess_resistance_score_3hr
         }
 
         return outputs
