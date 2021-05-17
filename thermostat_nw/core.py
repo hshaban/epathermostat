@@ -1391,7 +1391,7 @@ class Thermostat(object):
         Parameters
         ----------
         core_heating_day_set : thermostat.core.CoreDaySet
-            Core heating days over which to calculate baseline cooling demand.
+            Core heating days over which to calculate baseline heating demand.
         temp_baseline : float
             Baseline comfort temperature
         tau : float, default: None
@@ -1695,6 +1695,25 @@ class Thermostat(object):
         return mu_estimate, sigma_estimate, sigmoid_model_error, sigmoid_integral
 
     def fit_linear_cooling_model(self, core_day_set):
+        """NWMOD: Calculate an OLS model between indoor-outdoor temperature
+        delta and runtime
+
+        Parameters
+        ----------
+        core_day_set : thermostat.core.CoreDaySet
+            Core cooling days over which to calculate baseline cooling demand.
+
+        Returns
+        -------
+        model_parameters : float
+            Model parameters.
+        model_se : float
+            Standard errors of model parameters.
+        model_fit_metrics : float
+            R-squared and CVRMSE of OLS model.
+        excess_resistance_scores : float
+            Scores calculated over 1, 2 and 3 hr rolling windows.
+        """
         self._protect_cooling()
 
         df_daily = self.get_delta_df_cooling(core_day_set)
@@ -1752,6 +1771,7 @@ class Thermostat(object):
         )
 
     def get_delta_df_cooling(self, core_day_set):
+        """NWMOD: return a daily dataframe of temperature delta and runtime"""
         self._protect_cooling()
 
         df = pd.DataFrame()
@@ -1760,7 +1780,9 @@ class Thermostat(object):
         df["temperature_delta"] = df.temperature_out - df.temperature_in
         df["cool_runtime"] = self.cool_runtime_hourly
 
-        df_daily = df.resample("D").agg(pd.Series.sum, skipna=False)
+        df_daily = df.resample("D").agg(
+            {"temperature_delta": np.mean, "cool_runtime": np.sum}
+        )
         df_daily = df_daily[core_day_set.daily]
         return df_daily.loc[:, ["temperature_delta", "cool_runtime"]]
 
@@ -1865,7 +1887,9 @@ class Thermostat(object):
         df["temperature_delta"] = df.temperature_in - df.temperature_out
         df["heat_runtime"] = self.heat_runtime_hourly
 
-        df_daily = df.resample("D").agg(pd.Series.sum, skipna=False)
+        df_daily = df.resample("D").agg(
+            {"temperature_delta": np.mean, "heat_runtime": np.sum}
+        )
         df_daily = df_daily[core_day_set.daily]
 
         return df_daily.loc[:, ["temperature_delta", "heat_runtime"]]
@@ -1885,7 +1909,13 @@ class Thermostat(object):
             self.auxiliary_heat_runtime + self.emergency_heat_runtime
         )
 
-        df_daily = df.resample("D").agg(pd.Series.sum, skipna=False)
+        df_daily = df.resample("D").agg(
+            {
+                "temperature_delta": np.mean,
+                "adjusted_heat_runtime": np.sum,
+                "resistance_runtime": np.sum,
+            }
+        )
         df_daily = df_daily[core_day_set.daily]
 
         return df_daily.loc[
